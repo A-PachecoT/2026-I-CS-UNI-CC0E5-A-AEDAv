@@ -81,6 +81,7 @@ public:
     Vector(size_t capacity = 10);
     virtual ~Vector();
     virtual void push_back(value_type value, Ref ref);
+    virtual void clear();
     virtual size_t size();
     virtual string toString();
 
@@ -90,15 +91,17 @@ public:
     backward_iterator rbegin() { return backward_iterator(this, m_data + m_size - 1); }
     backward_iterator rend()   { return backward_iterator(this, m_data - 1); }
     
-    // TODO: Agregar control concurrente
+    // Tarea 2 — control concurrente sobre la recorrida
     template <typename Func, typename... Args>
     void ForEach(Func func, Args &&...  args){
+        scoped_lock lock(m_mtx);
         ::ForEach(begin(), end(), func, std::forward<Args>(args)... );
     }
 
-    // TODO: Agregar control concurrente
+    // Tarea 3 — control concurrente sobre la recorrida inversa
     template <typename Func, typename... Args>
     void ReverseForEach(Func func, Args &&...  args){
+        scoped_lock lock(m_mtx);
         ::ForEach(rbegin(), rend(), func, std::forward<Args>(args)... );
     }
 };
@@ -139,6 +142,12 @@ size_t Vector<T>::size(){
 }
 
 template <typename T>
+void Vector<T>::clear(){
+    scoped_lock lock(m_mtx);
+    m_size = 0;
+}
+
+template <typename T>
 string Vector<T>::toString(){
     ostringstream oss;
     oss << "[";
@@ -155,9 +164,35 @@ ostream& operator<<(ostream& os, Vector<T>& v){
     return os << v.toString();
 }
 
-// TODO: Implementar
+// Tarea 1 — lee formato [(data,ref),(data,ref),...] reemplazando el contenido
 template <typename T>
 istream& operator>>(istream& is, Vector<T>& v){
+    v.clear();
+    char ch;
+    if(!(is >> ch) || ch != '['){
+        is.setstate(ios::failbit);
+        return is;
+    }
+    if(is >> std::ws && is.peek() == ']'){
+        is.get();
+        return is;
+    }
+    while(true){
+        T   data;
+        Ref ref;
+        char open, comma, close;
+        if(!(is >> open >> data >> comma >> ref >> close)
+           || open != '(' || comma != ',' || close != ')'){
+            is.setstate(ios::failbit);
+            return is;
+        }
+        v.push_back(data, ref);
+        if(!(is >> ch) || (ch != ',' && ch != ']')){
+            is.setstate(ios::failbit);
+            return is;
+        }
+        if(ch == ']') break;
+    }
     return is;
 }
 
