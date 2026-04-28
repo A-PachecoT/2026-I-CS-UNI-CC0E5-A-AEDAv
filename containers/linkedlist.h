@@ -33,10 +33,12 @@ public:
 };
 
 // Linked List Node
-template <typename T, typename NodeType = LLNode<T>>
+// NodeType=void permite que el propio LLNode se sirva de Node sin recursion en
+// el default-arg. Si una subclase pasa CRTP (ej. DLLNode<T>), Node = subclase.
+template <typename T, typename NodeType = void>
 class LLNode{
 protected:
-    using Node = NodeType;
+    using Node = conditional_t<is_void_v<NodeType>, LLNode, NodeType>;
 private:
     T   m_data;
     Ref m_ref;
