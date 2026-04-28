@@ -8,6 +8,7 @@
 #include "linkedlist.h"
 #include "doublelinkedlist.h"
 #include "circularlinkedlist.h"
+#include "circulardoublelinkedlist.h"
 
 using namespace std;
 
@@ -85,6 +86,36 @@ void CircularLinkedListDemo() {
     DemoList(cll, "AscCLL.txt");
 }
 
+void CircularDoubleLinkedListDemo() {
+    cout << "\n--- CircularDoubleLinkedList ---" << endl;
+    CircularDoubleLinkedList<AscendingCDLLTrait<T1>> cdll;
+    cdll.push_back(1, 10);
+    cdll.push_back(2, 20);
+    cdll.push_back(3, 30);
+    cout << "  estado: " << cdll << endl;
+
+    // for(:) en sentido forward — centinela corta a 1 vuelta exacta.
+    cout << "  for(:) fwd (1 vuelta) -> ";
+    for (auto& x : cdll) cout << x << " ";
+    cout << endl;
+
+    // Recorrido backward via rbegin/rend con centinela.
+    cout << "  rbegin->rend bwd (1 vuelta) -> ";
+    for (auto it = cdll.rbegin(); it != cdll.rend(); ++it) cout << *it << " ";
+    cout << endl;
+
+    // Prueba de circularidad bidireccional: 2 vueltas en ambas direcciones.
+    cout << "  circularForEach(2 vueltas, fwd) -> ";
+    cdll.circularForEach(2, [](T1& v) { cout << v << " "; });
+    cout << endl;
+    cout << "  circularReverseForEach(2 vueltas, bwd) -> ";
+    cdll.circularReverseForEach(2, [](T1& v) { cout << v << " "; });
+    cout << endl;
+
+    // insert ordenado + op>>.
+    DemoList(cdll, "AscCDLL.txt");
+}
+
 void TestConcurrencia() {
     cout << "\n--- Concurrencia (5 hilos x 1000 push_front) ---" << endl;
     DoubleLinkedList<AscendingDLLTrait<T1>> list;
@@ -117,6 +148,7 @@ void ListsDemo() {
     LinkedListDemo();
     DoubleLinkedListDemo();
     CircularLinkedListDemo();
+    CircularDoubleLinkedListDemo();
     TestOperators();
     TestConcurrencia();
     cout << "\n=== FIN ===" << endl;
