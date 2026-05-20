@@ -25,7 +25,7 @@ auto branch = !m_comp(data, pNode->m_data);  // branch=1 si data >= pNode → de
 
 ## Mejora 2: `general_iterator` no define `operator!=`
 
-**Problema** (`containers/general_iterator.h:30`): solo declara `operator==`. Cualquier `for (it = c.begin(); it != c.end(); ++it)` falla a compilar en C++17, y aunque C++20 sintetiza `!=` desde `==`, el proyecto compila como C++23 y el LSP del repo no resuelve la síntesis en todas las versiones de clangd que usan los compañeros.
+**Problema** (`containers/general_iterator.h:30`): solo declara `operator==`. Cualquier `for (it = c.begin(); it != c.end(); ++it)` falla a compilar en C++17, y aunque C++20 sintetiza `!=` desde `==`, no es portable a todas las versiones de clangd.
 
 **Impacto:** correctness + portabilidad. Bloquea todos los iteradores nuevos del PC3.
 
@@ -79,4 +79,4 @@ Node* internal_insert(Node*& pNode, value_type data) override {
 
 **Impacto:** API consistente, evita método paralelo (`avl_insert` vs `internal_insert`).
 
-**Trade-off:** rompe la firma del baseline; lo dejo como propuesta no aplicada para preservar compatibilidad con PRs de compañeros.
+**Trade-off:** rompe la firma del baseline; lo dejo como propuesta no aplicada para preservar compatibilidad.
