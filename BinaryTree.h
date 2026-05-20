@@ -25,7 +25,7 @@ struct BinaryTreeNodeBase {
     T        m_data;
     Derived* m_pChild[2];
     BinaryTreeNodeBase(T data) : m_data(data), m_pChild{nullptr, nullptr} {}
-    virtual ~BinaryTreeNodeBase() = default;
+    ~BinaryTreeNodeBase() = default;
     T& getDataRef()       { return m_data; }
     T  getData()    const { return m_data; }
 };
@@ -126,12 +126,16 @@ private:
     }
 
 protected:
-    // virtual: la subclase AVL lo override con rebalanceo
-    // branch = 1 (derecha) si data NO es menor que pNode → pone equals a la derecha
-    virtual void internal_insert(Node*& pNode, value_type data) {
-        if (!pNode) { pNode = new Node(data); ++m_size; return; }
-        auto branch = !m_comp(data, pNode->m_data);
-        internal_insert(pNode->m_pChild[branch], data);
+    // Iterativo: evita stack overflow en BST degenerado (1..N en orden).
+    // branch = 1 (derecha) si data NO es menor que pNode → equals a la derecha.
+    virtual void internal_insert(Node*& pRoot, value_type data) {
+        Node** cur = &pRoot;
+        while (*cur) {
+            auto branch = !m_comp(data, (*cur)->m_data);
+            cur = &(*cur)->m_pChild[branch];
+        }
+        *cur = new Node(data);
+        ++m_size;
     }
 
 public:
@@ -299,7 +303,7 @@ public:
     MySelf& operator++() { advance(); return *this; }
 };
 
-// Preorder backward (precompute, traverse en reversa)
+// Preorder backward = mirror (N R L) — stack iterativo
 template<typename Container>
 class BTPreorderBackwardIterator
     : public general_iterator<Container, BTPreorderBackwardIterator<Container>> {
@@ -309,28 +313,21 @@ public:
     using Node   = typename Container::Node;
     using Parent::Parent;
 private:
-    vector<Node*> m_nodes;
-    int           m_idx;
-    void collect(Node* n) {
-        if (!n) return;
-        m_nodes.push_back(n);
-        collect(n->m_pChild[0]);
-        collect(n->m_pChild[1]);
+    stack<Node*> m_stack;
+    void advance() {
+        if (m_stack.empty()) { this->m_pNode = nullptr; return; }
+        Node* n = m_stack.top(); m_stack.pop();
+        this->m_pNode = n;
+        // push left primero → derecho sale primero (mirror de preorder fwd)
+        if (n->m_pChild[0]) m_stack.push(n->m_pChild[0]);
+        if (n->m_pChild[1]) m_stack.push(n->m_pChild[1]);
     }
 public:
     BTPreorderBackwardIterator(Container* c, Node* root)
-        : Parent(c, nullptr), m_idx(-1) {
-        collect(root);
-        m_idx = (int)m_nodes.size() - 1;
-        this->m_pNode = (m_idx >= 0) ? m_nodes[m_idx] : nullptr;
-    }
+        : Parent(c, nullptr) { if (root) m_stack.push(root); advance(); }
     BTPreorderBackwardIterator(Container* c, nullptr_t)
-        : Parent(c, nullptr), m_idx(-1) {}
-    MySelf& operator++() {
-        --m_idx;
-        this->m_pNode = (m_idx >= 0) ? m_nodes[m_idx] : nullptr;
-        return *this;
-    }
+        : Parent(c, nullptr) {}
+    MySelf& operator++() { advance(); return *this; }
 };
 
 // Postorder forward (left-right-root) — two-stack technique
@@ -367,7 +364,7 @@ public:
     MySelf& operator++() { advance(); return *this; }
 };
 
-// Postorder backward (root-right-left iterativo)
+// Postorder backward = mirror (R L N) — two-stack iterativo
 template<typename Container>
 class BTPostorderBackwardIterator
     : public general_iterator<Container, BTPostorderBackwardIterator<Container>> {
@@ -378,16 +375,25 @@ public:
     using Parent::Parent;
 private:
     stack<Node*> m_stack;
+    void build(Node* root) {
+        if (!root) return;
+        stack<Node*> s1;
+        s1.push(root);
+        while (!s1.empty()) {
+            Node* n = s1.top(); s1.pop();
+            m_stack.push(n);
+            // swap orden vs postorder fwd → al vaciar m_stack sale R L N
+            if (n->m_pChild[1]) s1.push(n->m_pChild[1]);
+            if (n->m_pChild[0]) s1.push(n->m_pChild[0]);
+        }
+    }
     void advance() {
         if (m_stack.empty()) { this->m_pNode = nullptr; return; }
-        Node* n = m_stack.top(); m_stack.pop();
-        this->m_pNode = n;
-        if (n->m_pChild[0]) m_stack.push(n->m_pChild[0]);
-        if (n->m_pChild[1]) m_stack.push(n->m_pChild[1]);
+        this->m_pNode = m_stack.top(); m_stack.pop();
     }
 public:
     BTPostorderBackwardIterator(Container* c, Node* root)
-        : Parent(c, nullptr) { if (root) m_stack.push(root); advance(); }
+        : Parent(c, nullptr) { build(root); advance(); }
     BTPostorderBackwardIterator(Container* c, nullptr_t)
         : Parent(c, nullptr) {}
     MySelf& operator++() { advance(); return *this; }
