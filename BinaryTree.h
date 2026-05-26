@@ -183,24 +183,6 @@ public:
         return oss.str();
     }
 
-    friend ostream& operator<<(ostream& os, const BinaryTree& t) {
-        os << t.ToString();
-        return os;
-    }
-
-    // Parsea formato "[v1,v2,v3,...]"
-    friend istream& operator>>(istream& is, BinaryTree& t) {
-        char ch;
-        if (!(is >> ch) || ch != '[') { is.setstate(ios::failbit); return is; }
-        value_type val;
-        while (is >> ch) {
-            if (ch == ']') break;
-            if (ch != ',') is.putback(ch);
-            if (is >> val) t.insert(val);
-        }
-        return is;
-    }
-
     forward_iterator            begin()             { return forward_iterator(this, m_pRoot); }
     forward_iterator            end()               { return forward_iterator(this, nullptr); }
     backward_iterator           rbegin()            { return backward_iterator(this, m_pRoot); }

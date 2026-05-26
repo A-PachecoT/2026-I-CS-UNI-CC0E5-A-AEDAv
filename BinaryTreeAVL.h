@@ -44,24 +44,17 @@ private:
                                      node_height(n->m_pChild[1]));
     }
 
-    Node* rotate_right(Node* y) {
-        Node* x  = y->m_pChild[0];
-        Node* T2 = x->m_pChild[1];
-        x->m_pChild[1] = y;
-        y->m_pChild[0] = T2;
-        update_height(y);
-        update_height(x);
-        return x;
-    }
-
-    Node* rotate_left(Node* x) {
-        Node* y  = x->m_pChild[1];
-        Node* T2 = y->m_pChild[0];
-        y->m_pChild[0] = x;
-        x->m_pChild[1] = T2;
-        update_height(x);
-        update_height(y);
-        return y;
+    // Rotación unificada: n=0 sube el hijo izquierdo (rotate_right),
+    //                    n=1 sube el hijo derecho  (rotate_left).
+    // Los dos casos son simétricos — uso 1-n para el subárbol que migra.
+    Node* rotate(Node* pNode, int n) {
+        Node* pChild = pNode->m_pChild[n];
+        Node* T2     = pChild->m_pChild[1-n];
+        pChild->m_pChild[1-n] = pNode;
+        pNode->m_pChild[n]    = T2;
+        update_height(pNode);
+        update_height(pChild);
+        return pChild;
     }
 
     // Adapta el insert del BinaryTree agregando altura + rotaciones.
@@ -72,23 +65,23 @@ private:
         node->m_pChild[branch] = avl_insert(node->m_pChild[branch], data);
         update_height(node);
 
-        int bf = balance(node);
+        auto bf = balance(node);
 
-        // Left-Left  → data < m_pChild[0]  → rotación derecha simple
+        // Left-Left  → data < m_pChild[0]  → rotación derecha simple (n=0)
         if (bf > 1  &&  this->m_comp(data, node->m_pChild[0]->m_data))
-            return rotate_right(node);
-        // Right-Right → data >= m_pChild[1] → rotación izquierda simple
+            return rotate(node, 0);
+        // Right-Right → data >= m_pChild[1] → rotación izquierda simple (n=1)
         if (bf < -1 && !this->m_comp(data, node->m_pChild[1]->m_data))
-            return rotate_left(node);
-        // Left-Right → data >= m_pChild[0] → izq sobre hijo izq + der sobre nodo
+            return rotate(node, 1);
+        // Left-Right → izq sobre hijo izq + der sobre nodo
         if (bf > 1  && !this->m_comp(data, node->m_pChild[0]->m_data)) {
-            node->m_pChild[0] = rotate_left(node->m_pChild[0]);
-            return rotate_right(node);
+            node->m_pChild[0] = rotate(node->m_pChild[0], 1);
+            return rotate(node, 0);
         }
-        // Right-Left → data < m_pChild[1] → der sobre hijo der + izq sobre nodo
+        // Right-Left → der sobre hijo der + izq sobre nodo
         if (bf < -1 &&  this->m_comp(data, node->m_pChild[1]->m_data)) {
-            node->m_pChild[1] = rotate_right(node->m_pChild[1]);
-            return rotate_left(node);
+            node->m_pChild[1] = rotate(node->m_pChild[1], 0);
+            return rotate(node, 1);
         }
         return node;
     }
