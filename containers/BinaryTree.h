@@ -296,7 +296,24 @@ public:
     }
 
     friend istream& operator>>(istream& is, BinaryTree& t) {
-        return container_read(is, t);
+        char ch;
+        if(!(is >> ch) || ch != '['){
+            is.clear(ios_base::failbit);
+            return is;
+        }
+        value_type val;
+        Ref ref;
+        char comma, paren;
+        while(is >> ch && ch != ']'){
+            if(ch == '('){
+                if(is >> val >> comma >> ref >> paren){
+                    if(comma == ',' && paren == ')'){
+                        t.insert(val, ref);
+                    }
+                }
+            }
+        }
+        return is;
     }
 };
 

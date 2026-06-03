@@ -3,7 +3,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
-#include <atomic>
+#include <utility>
 
 #include "../types.h"
 #include "hashtable.h"
@@ -14,7 +14,6 @@ void DemoHashTableBasico() {
     cout << "\n=== HashTable Basico Demo ===" << endl;
     HashTable<int, string> m;
 
-    // Insertar via insert(k, v)
     m.insert(5, "cinco");
     m.insert(2, "dos");
     m.insert(8, "ocho");
@@ -22,7 +21,6 @@ void DemoHashTableBasico() {
 
     cout << "Despues de 4 inserts: size = " << m.size() << endl;
 
-    // operator[] read
     cout << "m[5] = " << m[5] << endl;
     cout << "m[2] = " << m[2] << endl;
 
@@ -30,11 +28,9 @@ void DemoHashTableBasico() {
     m[42] = "cuarenta y dos";
     cout << "Despues de m[42]= : size = " << m.size() << ", m[42] = " << m[42] << endl;
 
-    // contains
     cout << "contains(5) = " << m.contains(5)  << endl;
     cout << "contains(99) = " << m.contains(99) << endl;
 
-    // at con key inexistente -> throw
     try {
         m.at(999);
         cout << "FALLO: at(999) no lanzo" << endl;
@@ -50,31 +46,58 @@ void DemoStructuredBindings() {
         m[k] = k * 10;
     }
 
-    // range-for + structured bindings — la prueba de fuego del KVPair
-    cout << "Iteracion inorder (key ascendente esperado):" << endl;
-    for(auto it = m.begin(); it != m.end(); ++it) {
-        // Cada deref devuelve KVPair&; structured bindings via get<I>
-        auto& pair = *it;
-        cout << "  [" << get<0>(pair) << "] = " << get<1>(pair) << endl;
+    // for (const auto& [k, v] : m) — structured bindings literal
+    cout << "Iteracion con structured bindings (key ascendente):" << endl;
+    for(const auto& [k, v] : m) {
+        cout << "  [" << k << "] = " << v << endl;
     }
 }
 
+void DemoCopyMove() {
+    cout << "\n=== HashTable Copy/Move Demo ===" << endl;
+    HashTable<int, int> original;
+    original[10] = 100;
+    original[20] = 200;
+    original[30] = 300;
+    cout << "original size = " << original.size() << endl;
+
+    // Copy constructor
+    HashTable<int, int> copia = original;
+    cout << "Despues de copia (copy ctor): copia size = " << copia.size()
+         << ", copia[20] = " << copia[20] << endl;
+
+    // Modificar copia no afecta original
+    copia[20] = 999;
+    cout << "Modifique copia[20] = 999. original[20] sigue = " << original[20] << endl;
+
+    // Move constructor
+    HashTable<int, int> movida = std::move(copia);
+    cout << "Despues de move ctor: movida size = " << movida.size()
+         << ", movida[10] = " << movida[10] << endl;
+}
+
 void DemoHashTablePersistencia() {
-    cout << "\n=== HashTable Persistencia Demo ===" << endl;
+    cout << "\n=== HashTable Persistencia Demo (operator<< y operator>>) ===" << endl;
     HashTable<int, int> m;
     m[10] = 100;
     m[5]  = 50;
     m[20] = 200;
     m[1]  = 1;
 
-    // No tenemos operator<< que respete el formato KVPair;
-    // mostramos por toString del AVL base.
-    cout << "Estado en memoria (inorder): " << m.toString() << endl;
+    // operator<< heredado de BinaryTree base
+    cout << "Estado via operator<<: " << m << endl;
 
     ofstream of("hashtable.txt");
-    of << m.toString() << endl;
+    of << m << endl;
     of.close();
     cout << "Escrito a hashtable.txt" << endl;
+
+    // operator>> via container_read
+    HashTable<int, int> releida;
+    ifstream in("hashtable.txt");
+    in >> releida;
+    cout << "Releida via operator>>: " << releida << endl;
+    cout << "releida[10] = " << releida[10] << endl;
 }
 
 void DemoHashTableConcurrency() {
@@ -97,6 +120,7 @@ void DemoHashTableConcurrency() {
 void HashTableDemo() {
     DemoHashTableBasico();
     DemoStructuredBindings();
+    DemoCopyMove();
     DemoHashTablePersistencia();
     DemoHashTableConcurrency();
 }
