@@ -126,31 +126,69 @@ protected:
 
     // Override del internal_insert del BinaryTree.
     // Despues de la insercion recursiva, actualiza altura y rebalancea.
-    virtual void internal_insert_unsafe(Node*& pNode,
-                                        const value_type& data,
-                                        Ref ref,
-                                        Node* parent) override {
+    // Las rotaciones NO mueven el nodo recien creado en memoria, solo
+    // reordenan punteros — el Node* retornado sigue siendo valido aunque
+    // su posicion en el arbol haya cambiado.
+    virtual Node* internal_insert_unsafe(Node*& pNode,
+                                         const value_type& data,
+                                         Ref ref,
+                                         Node* parent) override {
         if(pNode == nullptr) {
             pNode = new Node(data, ref, parent);
             ++this->m_size;
-            return;
+            return pNode;
         }
         int branch = this->m_comp(pNode->getData(), data) ? 1 : 0;
-        internal_insert_unsafe(pNode->getChildRef(branch), data, ref, pNode);
+        Node* inserted = internal_insert_unsafe(pNode->getChildRef(branch),
+                                                data, ref, pNode);
 
         update_height_unsafe(pNode);
         rebalance_unsafe(pNode);
+        return inserted;
+    }
+
+    // Post-order: hijos primero, luego update_height(n). Tras copiar un
+    // AVL via Base, todos los AVLNode quedan con m_height=1 (el default
+    // del ctor de AVLNode). Hay que recalcular bottom-up para restaurar
+    // el invariante de altura.
+    static void recompute_heights_unsafe(Node* n) {
+        if(!n) return;
+        recompute_heights_unsafe(n->getChild(0));
+        recompute_heights_unsafe(n->getChild(1));
+        update_height_unsafe(n);
     }
 
 public:
     AVL() = default;
-    // El resto del Big Five viene de BinaryTree<Trait> via herencia.
-    // Las copy/move ctors de Base llaman a internal_copy_unsafe que es
-    // virtual? -> no, internal_copy es por puntero base. Pero como Node ya
-    // es AVLNode (via Trait), `new Node(...)` en internal_copy_unsafe crea
-    // AVLNodes correctos. Heights se setean en 1 — eso es incorrecto para
-    // copy de un AVL desbalanceado-pero-arreglado. Para PC4 el caso de
-    // copy de AVL es ocasional; si en review aparece, se override.
+
+    // Override del Big Five copy/move: delega al Base para clonar la
+    // estructura, despues recalcula heights. Sin esto, una copia de un
+    // AVL no-trivial queda con alturas inconsistentes hasta el primer
+    // insert que las repare.
+    AVL(const AVL& other) : Base(static_cast<const Base&>(other)) {
+        unique_lock<shared_mutex> lock(this->m_mtx);
+        recompute_heights_unsafe(this->m_pRoot);
+    }
+
+    AVL(AVL&& other) noexcept : Base(static_cast<Base&&>(other)) {
+        // Move conserva los AVLNode originales con sus heights intactas.
+        // No hace falta recompute.
+    }
+
+    AVL& operator=(const AVL& other) {
+        if(this == &other) return *this;
+        Base::operator=(static_cast<const Base&>(other));
+        unique_lock<shared_mutex> lock(this->m_mtx);
+        recompute_heights_unsafe(this->m_pRoot);
+        return *this;
+    }
+
+    AVL& operator=(AVL&& other) noexcept {
+        if(this == &other) return *this;
+        Base::operator=(static_cast<Base&&>(other));
+        return *this;
+    }
+
     virtual ~AVL() = default;
 };
 

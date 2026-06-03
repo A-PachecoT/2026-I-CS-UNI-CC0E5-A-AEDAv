@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -9,63 +10,54 @@
 
 using namespace std;
 
-void DemoMinHeap() {
-    cout << "\n=== MinHeap Demo ===" << endl;
-    Heap<MinHeapTrait<T1>> h;
+// Demo parametrizado: la misma logica para MinHeap y MaxHeap. El Trait
+// (MinHeapTrait<T> o MaxHeapTrait<T>) determina el ordenamiento; el resto
+// es identico — antes habia dos funciones casi gemelas (DemoMinHeap y
+// DemoMaxHeap) con un solo diferencial: el Trait + nombre de archivo.
+template <typename Trait>
+static void DemoHipGenerico(const string& titulo,
+                            const string& archivo,
+                            const string& tagOrden) {
+    cout << "\n=== " << titulo << " ===" << endl;
+    Heap<Trait> h;
 
-    // Insertar desordenado
-    int valores[]    = {50, 20, 80, 10, 30, 5, 70};
-    int refs[]       = {1,  2,  3,  4,  5, 6,  7};
-    for(size_t i = 0; i < 7; ++i)
+    const int valores[] = {50, 20, 80, 10, 30, 5, 70};
+    const int refs[]    = {1,  2,  3,  4,  5, 6,  7};
+    const size_t N = sizeof(valores) / sizeof(valores[0]);
+
+    for(size_t i = 0; i < N; ++i)
         h.insert(valores[i], refs[i]);
 
     cout << "Heap interno (array): " << h << endl;
     cout << "size = " << h.size() << endl;
 
-    // Extraer todo — debe salir en orden ASCENDENTE
-    cout << "Extracciones (orden ascendente esperado): ";
+    cout << "Extracciones (orden " << tagOrden << " esperado): ";
     while(!h.empty()) {
         auto [v, r] = h.extract();
         cout << "(" << v << "," << r << ") ";
     }
     cout << endl;
 
-    // Persistir
-    ofstream of("minheap.txt");
-    for(size_t i = 0; i < 7; ++i) h.insert(valores[i], refs[i]);
+    // Reinsertar para persistir
+    for(size_t i = 0; i < N; ++i) h.insert(valores[i], refs[i]);
+    ofstream of(archivo);
     of << h << endl;
     of.close();
 
-    // Releer en otro heap
-    Heap<MinHeapTrait<T1>> h2;
-    ifstream in("minheap.txt");
-    in >> h2;
-    cout << "Releido desde minheap.txt: " << h2 << endl;
-    cout << "Peek del releido: ";
-    auto [pv, pr] = h2.peek();
-    cout << "(" << pv << "," << pr << ")" << endl;
+    Heap<Trait> releido;
+    ifstream in(archivo);
+    in >> releido;
+    cout << "Releido desde " << archivo << ": " << releido << endl;
+    auto [pv, pr] = releido.peek();
+    cout << "Peek del releido: (" << pv << "," << pr << ")" << endl;
+}
+
+void DemoMinHeap() {
+    DemoHipGenerico<MinHeapTrait<T1>>("MinHeap Demo", "minheap.txt", "ASCENDENTE");
 }
 
 void DemoMaxHeap() {
-    cout << "\n=== MaxHeap Demo ===" << endl;
-    Heap<MaxHeapTrait<T1>> h;
-
-    int valores[] = {50, 20, 80, 10, 30, 5, 70};
-    int refs[]    = {1,  2,  3,  4,  5, 6,  7};
-    for(size_t i = 0; i < 7; ++i)
-        h.insert(valores[i], refs[i]);
-
-    cout << "Heap interno: " << h << endl;
-    cout << "Extracciones (orden DESCENDENTE esperado): ";
-    while(!h.empty()) {
-        auto [v, r] = h.extract();
-        cout << "(" << v << "," << r << ") ";
-    }
-    cout << endl;
-
-    ofstream of("maxheap.txt");
-    for(size_t i = 0; i < 7; ++i) h.insert(valores[i], refs[i]);
-    of << h << endl;
+    DemoHipGenerico<MaxHeapTrait<T1>>("MaxHeap Demo", "maxheap.txt", "DESCENDENTE");
 }
 
 void DemoHeapConcurrency() {
@@ -84,9 +76,6 @@ void DemoHeapConcurrency() {
     cout << "5 hilos x 200 inserts. Esperado=1000, real=" << h.size() << endl;
     cout << (h.size() == 1000 ? "EXITO" : "FALLO") << endl;
 
-    // El menor de todos debe ser 1001 (worker 1, i=1) -> NO, worker 1 inserta
-    // 0+1000=1000, 1+1000=1001, ... el min es 1000.
-    // Worker 0 no existe. Worker 1 -> 1000..1199. Min global = 1000.
     auto [v, r] = h.peek();
     cout << "Peek (esperado v=1000, ref=1): v=" << v << " r=" << r << endl;
 }

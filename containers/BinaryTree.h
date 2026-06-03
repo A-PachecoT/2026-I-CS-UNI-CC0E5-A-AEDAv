@@ -84,10 +84,10 @@ class bt_inorder_forward_iterator
     : public general_iterator<Container, bt_inorder_forward_iterator<Container>>
 {
 public:
-    using MySelf = bt_inorder_forward_iterator<Container>;
-    using Parent = general_iterator<Container, MySelf>;
+    using Parent = general_iterator<Container, bt_inorder_forward_iterator<Container>>;
     using Node   = typename Container::Node;
     using Parent::Parent;
+    using typename Parent::MySelf;
 
     MySelf operator++() {
         Node* n = this->m_pNode;
@@ -115,10 +115,10 @@ class bt_inorder_backward_iterator
     : public general_iterator<Container, bt_inorder_backward_iterator<Container>>
 {
 public:
-    using MySelf = bt_inorder_backward_iterator<Container>;
-    using Parent = general_iterator<Container, MySelf>;
+    using Parent = general_iterator<Container, bt_inorder_backward_iterator<Container>>;
     using Node   = typename Container::Node;
     using Parent::Parent;
+    using typename Parent::MySelf;
 
     // ++ = predecesor inorder (espejado del forward)
     MySelf operator++() {
@@ -163,7 +163,10 @@ protected:
 
     // ---- helpers _unsafe (asumen lock externo) ----
 
-    virtual void internal_insert_unsafe(Node* &pNode, const value_type &data, Ref ref, Node* parent);
+    // Retorna puntero al nodo recien insertado (o existente si duplicado).
+    // Permite a HashTable::operator[] hacer find_or_insert en una sola
+    // pasada en vez de dos busquedas O(log n).
+    virtual Node* internal_insert_unsafe(Node* &pNode, const value_type &data, Ref ref, Node* parent);
 
     // copy recursivo manteniendo m_pParent. Si no se propaga el parent,
     // los nodos copiados quedan con m_pParent = nullptr y los iteradores
@@ -320,14 +323,15 @@ public:
 // ----- impl _unsafe helpers -----
 
 template <typename Trait>
-void BinaryTree<Trait>::internal_insert_unsafe(Node* &pNode, const value_type &data, Ref ref, Node* parent){
+typename BinaryTree<Trait>::Node*
+BinaryTree<Trait>::internal_insert_unsafe(Node* &pNode, const value_type &data, Ref ref, Node* parent){
     if(pNode == nullptr){
         pNode = new Node(data, ref, parent);
         ++m_size;
-        return;
+        return pNode;
     }
     int branch = m_comp(pNode->getData(), data) ? 1 : 0;
-    internal_insert_unsafe(pNode->getChildRef(branch), data, ref, pNode);
+    return internal_insert_unsafe(pNode->getChildRef(branch), data, ref, pNode);
 }
 
 template <typename Trait>

@@ -21,10 +21,10 @@ using namespace std;
 template <typename Container>
 class LinkedListForwardIterator : public general_iterator<Container, LinkedListForwardIterator<Container>>{
 public:
-    using MySelf = LinkedListForwardIterator<Container>;
-    using Parent = general_iterator<Container, MySelf>;
+    using Parent = general_iterator<Container, LinkedListForwardIterator<Container>>;
     using Parent::Parent;
-    
+    using typename Parent::MySelf;
+
     MySelf operator++() {
         if (this->m_pNode) {
             this->m_pNode = this->m_pNode->getNext();
@@ -157,6 +157,8 @@ public:
     
     virtual value_type& operator[](size_t index);
     virtual size_t  size() const;
+    virtual bool    empty() const;
+    virtual string  toString() const;
 
     forward_iterator begin() { return forward_iterator(this, m_pRoot); }
     forward_iterator end()   { return forward_iterator(this, nullptr); }
@@ -171,18 +173,10 @@ public:
         }
     }
 
-    // Operadores I/O
+    // Operadores I/O — delega en toString() para tener un unico lugar
+    // donde se define el formato.
     friend ostream& operator<<(ostream& os, const LinkedList& list) {
-        shared_lock<shared_mutex>lock(list.m_mtx); 
-        os << "[";
-        Node* act = list.m_pRoot;
-        while(act){
-            os << "(" << act->getData() << "," << act->getRef() << ")";
-            if(act->getNext()) os << ",";
-            act = act->getNext();
-        }
-        os << "]";
-        return os;
+        return os << list.toString();
     }
 
     friend istream& operator>>(istream& is, LinkedList& list) {
@@ -223,17 +217,10 @@ void LinkedList<Trait>::internal_insert(Node* &pPrev, const value_type &value, R
 
 template <typename Trait>
 void LinkedList<Trait>::insert(const value_type &value, Ref ref){
-    unique_lock<shared_mutex> lock(m_mtx); 
+    unique_lock<shared_mutex> lock(m_mtx);
+    // internal_insert ya mantiene m_tail correcto (linea 217). Walk lineal
+    // extra eliminado: era duplicacion de trabajo O(n) por insercion.
     internal_insert(m_pRoot, value, ref);
-    if(m_size == 1){
-        m_tail = m_pRoot;
-    }else{
-        Node* act = m_pRoot;
-        while(act && act->getNext()){
-            act = act->getNext();
-        }
-        m_tail = act;
-    }
 }
 
 // PushFront
@@ -318,8 +305,29 @@ typename LinkedList<Trait>::value_type& LinkedList<Trait>::operator[](size_t ind
 
 template <typename Trait>
 size_t LinkedList<Trait>::size() const {
-    shared_lock<shared_mutex> lock(m_mtx); 
+    shared_lock<shared_mutex> lock(m_mtx);
     return m_size;
+}
+
+template <typename Trait>
+bool LinkedList<Trait>::empty() const {
+    shared_lock<shared_mutex> lock(m_mtx);
+    return m_size == 0;
+}
+
+template <typename Trait>
+string LinkedList<Trait>::toString() const {
+    shared_lock<shared_mutex> lock(m_mtx);
+    ostringstream oss;
+    oss << "[";
+    Node* act = m_pRoot;
+    while(act){
+        oss << "(" << act->getData() << "," << act->getRef() << ")";
+        if(act->getNext()) oss << ",";
+        act = act->getNext();
+    }
+    oss << "]";
+    return oss.str();
 }
 
 #endif // __LINKEDLIST_H__

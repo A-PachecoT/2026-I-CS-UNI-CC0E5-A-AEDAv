@@ -19,18 +19,18 @@ using namespace std;
 template <typename Container>
 class vector_forward_iterator : public general_iterator<Container, vector_forward_iterator<Container>> {
 public:
-    using MySelf = vector_forward_iterator<Container>;
-    using Parent = general_iterator<Container, MySelf>;
+    using Parent = general_iterator<Container, vector_forward_iterator<Container>>;
     using Parent::Parent;
+    using typename Parent::MySelf;  // <- heredado del padre CRTP
     MySelf operator++() { this->m_pNode++; return *this; }
 };
 
 template <typename Container>
 class vector_backward_iterator : public general_iterator<Container, vector_backward_iterator<Container>> {
 public:
-    using MySelf = vector_backward_iterator<Container>;
-    using Parent = general_iterator<Container, MySelf>;
+    using Parent = general_iterator<Container, vector_backward_iterator<Container>>;
     using Parent::Parent;
+    using typename Parent::MySelf;
     MySelf operator++() { this->m_pNode--; return *this; }
 };
 
@@ -39,20 +39,12 @@ class VectorNode{
     T   m_data;
     Ref m_ref;
 public:
-    VectorNode() : m_data(T()), m_ref(Ref()) {}
+    VectorNode() = default;
     VectorNode(T data, Ref ref) : m_data(data), m_ref(ref) {}
-    VectorNode(const VectorNode &other) : m_data(other.m_data), m_ref(other.m_ref) {}
-    VectorNode(VectorNode &&other) : m_data(std::move(other.m_data)), m_ref(std::move(other.m_ref)) {}
-    VectorNode& operator=(const VectorNode &other) {
-        m_data = other.m_data;
-        m_ref = other.m_ref;
-        return *this;
-    }
-    VectorNode& operator=(VectorNode &&other) {
-        m_data = std::move(other.m_data);
-        m_ref = std::move(other.m_ref);
-        return *this;
-    }
+    VectorNode(const VectorNode&) = default;
+    VectorNode(VectorNode&&) noexcept = default;
+    VectorNode& operator=(const VectorNode&) = default;
+    VectorNode& operator=(VectorNode&&) noexcept = default;
 
     T          getData() const { return m_data; }
     T&         getDataRef()       { return m_data; }
@@ -60,7 +52,6 @@ public:
     void       setData(T data) { m_data = data; }
     Ref        getRef() const { return m_ref; }
     void       setRef(Ref ref) { m_ref = ref; }
-    
 };
 
 template <typename T>

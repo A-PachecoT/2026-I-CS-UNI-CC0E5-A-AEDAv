@@ -9,6 +9,10 @@ class general_iterator
     using Node       = typename Container::Node;
     using value_type = typename Container::value_type;
     using myself     = general_iterator<Container, IteratorBase>;
+    // CRTP: el tipo derivado YA llega como IteratorBase. Exponerlo como
+    // MySelf permite a los iteradores derivados omitir `using MySelf = X<C>;`
+    // y heredarlo directamente (`using typename Parent::MySelf;`).
+    using MySelf     = IteratorBase;
 
 protected:
     Container *m_pContainer;

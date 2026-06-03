@@ -86,20 +86,16 @@ public:
     // Big Five heredado de Base — funciona porque AVL solo agrega
     // m_height a los nodos y todo lo demas se copia/mueve via Base.
 
-    // operator[](key) — insert on miss.
-    // Toma unique_lock porque puede insertar.
+    // operator[](key) — find-or-insert en una sola pasada.
+    // internal_insert_unsafe ahora retorna el Node* del nodo creado;
+    // las rotaciones del AVL no invalidan el puntero (reordenan
+    // referencias, no objetos).
     Value& operator[](const Key& key) {
         unique_lock<shared_mutex> lock(this->m_mtx);
-        Node* found = find_node_unsafe(key);
-        if(found) return found->getDataRef().m_value;
-
-        // No existe — insertar con value default y buscar otra vez.
-        // (Insertar via internal_insert puede rotar el subarbol y
-        // mover el nodo; por eso buscamos despues para retornar la ref
-        // estable al nodo actual.)
-        Pair newPair(key, Value{});
-        this->internal_insert_unsafe(this->m_pRoot, newPair, Ref{}, nullptr);
-        Node* inserted = find_node_unsafe(key);
+        if(Node* found = find_node_unsafe(key))
+            return found->getDataRef().m_value;
+        Node* inserted = this->internal_insert_unsafe(
+            this->m_pRoot, Pair(key, Value{}), Ref{}, nullptr);
         return inserted->getDataRef().m_value;
     }
 
@@ -117,6 +113,11 @@ public:
     }
 
     // insert(key, value) — sobrescribe si existe.
+    // Trae el insert(value, Ref) del Base AVL al scope publico — evita el
+    // warning de Woverloaded-virtual al introducir nuestra sobrecarga
+    // insert(Key, Value).
+    using Base::insert;
+
     void insert(const Key& key, const Value& value) {
         unique_lock<shared_mutex> lock(this->m_mtx);
         Node* found = find_node_unsafe(key);
@@ -128,8 +129,6 @@ public:
         this->internal_insert_unsafe(this->m_pRoot, newPair, Ref{}, nullptr);
     }
 };
-
-#endif // __HASHTABLE_H__
 
 // =====================================================================
 // Especializaciones para structured bindings:
@@ -162,3 +161,5 @@ const auto& get(const KVPair<K, V>& p) {
     if constexpr (I == 0) return p.m_key;
     else                  return p.m_value;
 }
+
+#endif // __HASHTABLE_H__
