@@ -7,6 +7,11 @@
 
 #include "../types.h"
 #include "hashtable.h"
+#include "heap.h"
+#include "linkedlist.h"
+#include "BinaryTree.h"
+#include "avl.h"
+#include "vector.h"
 
 using namespace std;
 
@@ -117,10 +122,49 @@ void DemoHashTableConcurrency() {
     cout << (m.size() == 1000 ? "EXITO" : "FALLO") << endl;
 }
 
+// Range-for nativo en los 6 contenedores: Vector, LinkedList,
+// BinaryTree, AVL, Heap, HashTable.
+void DemoRangeForNativo() {
+    cout << "\n=== Range-for nativo (6 contenedores) ===" << endl;
+
+    // 1. Vector
+    Vector<int> v;
+    v.push_back(10, 1); v.push_back(20, 2); v.push_back(30, 3);
+    cout << "1) Vector:      "; for(auto& x : v) cout << x << " "; cout << endl;
+
+    // 2. LinkedList
+    LinkedList<AscendingLinkedListTrait<int>> ll;
+    ll.push_back(100, 1); ll.push_back(200, 2); ll.push_back(300, 3);
+    cout << "2) LinkedList:  "; for(auto& x : ll) cout << x << " "; cout << endl;
+
+    // 3. BinaryTree (inorder)
+    BinaryTree<AscendingBTTrait<int>> bt;
+    bt.insert(50, 1); bt.insert(20, 2); bt.insert(80, 3); bt.insert(10, 4);
+    cout << "3) BinaryTree:  "; for(auto& x : bt) cout << x << " "; cout << endl;
+
+    // 4. AVL (inorder balanceado)
+    AVL<AscendingAVLTrait<int>> avl;
+    avl.insert(50, 1); avl.insert(20, 2); avl.insert(80, 3); avl.insert(10, 4);
+    cout << "4) AVL:         "; for(auto& x : avl) cout << x << " "; cout << endl;
+
+    // 5. Heap (orden interno del array, no ordenado por prioridad)
+    Heap<MinHeapTrait<int>> h;
+    h.insert(50, 1); h.insert(20, 2); h.insert(80, 3); h.insert(10, 4);
+    cout << "5) Heap array:  "; for(auto& x : h) cout << x << " "; cout << endl;
+
+    // 6. HashTable con structured bindings
+    HashTable<int, int> ht;
+    ht[5] = 50; ht[2] = 20; ht[8] = 80;
+    cout << "6) HashTable:   ";
+    for(const auto& [k, val] : ht) cout << k << "->" << val << "  ";
+    cout << endl;
+}
+
 void HashTableDemo() {
     DemoHashTableBasico();
     DemoStructuredBindings();
     DemoCopyMove();
     DemoHashTablePersistencia();
     DemoHashTableConcurrency();
+    DemoRangeForNativo();
 }

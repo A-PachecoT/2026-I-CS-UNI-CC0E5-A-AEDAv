@@ -163,6 +163,16 @@ public:
     bool   empty()   const { shared_lock<shared_mutex> lock(m_mtx); return m_vec.m_size == 0; }
     bool   isEmpty() const { return empty(); }
 
+    // Iteradores del Vector subyacente — habilitan range-for nativo
+    // `for (auto& v : heap)`. Recorrido lineal del array (orden interno
+    // del heap, NO ordenado por prioridad — para eso usar extract).
+    using forward_iterator  = typename Vector<value_type>::forward_iterator;
+    using backward_iterator = typename Vector<value_type>::backward_iterator;
+    forward_iterator  begin()  { return m_vec.begin(); }
+    forward_iterator  end()    { return m_vec.end(); }
+    backward_iterator rbegin() { return m_vec.rbegin(); }
+    backward_iterator rend()   { return m_vec.rend(); }
+
     string toString() const {
         shared_lock<shared_mutex> lock(m_mtx);
         ostringstream oss;
