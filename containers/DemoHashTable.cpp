@@ -128,7 +128,7 @@ void DemoRangeForNativo() {
     cout << "\n=== Range-for nativo (6 contenedores) ===" << endl;
 
     // 1. Vector
-    Vector<int> v;
+    Vector<VectorTrait<int>> v;
     v.push_back(10, 1); v.push_back(20, 2); v.push_back(30, 3);
     cout << "1) Vector:      "; for(auto& x : v) cout << x << " "; cout << endl;
 

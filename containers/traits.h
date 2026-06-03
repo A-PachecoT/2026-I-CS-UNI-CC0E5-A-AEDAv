@@ -9,6 +9,13 @@ struct BaseTrait{
     using Comp       = _Comp;
 };
 
+// VectorTrait — Trait minimo para Vector<Trait>. Solo expone value_type.
+// El Vector no necesita Comp, asi que VectorTrait es un wrapper trivial.
+template <typename T>
+struct VectorTrait {
+    using value_type = T;
+};
+
 template <typename _Node>
 struct AscendingTrait : public BaseTrait<_Node, std::less<typename _Node::value_type>>{
 };

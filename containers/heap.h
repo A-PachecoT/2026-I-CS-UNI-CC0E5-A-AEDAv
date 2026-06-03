@@ -53,7 +53,9 @@ public:
     using MySelf     = Heap<Trait>;
 
 private:
-    Vector<value_type>    m_vec;
+    // Vector ahora parametrizado por el mismo Trait del Heap.
+    // Vector solo necesita value_type del Trait; ignora Comp.
+    Vector<Trait>         m_vec;
     Comp                  m_comp;
     mutable shared_mutex  m_mtx;
 
@@ -166,8 +168,8 @@ public:
     // Iteradores del Vector subyacente — habilitan range-for nativo
     // `for (auto& v : heap)`. Recorrido lineal del array (orden interno
     // del heap, NO ordenado por prioridad — para eso usar extract).
-    using forward_iterator  = typename Vector<value_type>::forward_iterator;
-    using backward_iterator = typename Vector<value_type>::backward_iterator;
+    using forward_iterator  = typename Vector<Trait>::forward_iterator;
+    using backward_iterator = typename Vector<Trait>::backward_iterator;
     forward_iterator  begin()  { return m_vec.begin(); }
     forward_iterator  end()    { return m_vec.end(); }
     backward_iterator rbegin() { return m_vec.rbegin(); }

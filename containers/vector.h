@@ -12,6 +12,7 @@
 #include <stdexcept>   // std::out_of_range
 #include "general_iterator.h"
 #include "util.h"
+#include "traits.h"
 #include "../types.h"
 using namespace std;
 
@@ -68,21 +69,24 @@ ostream& operator<<(ostream& os, VectorNode<T>& node){
 }
 
 // Forward decl para que Vector pueda declarar Heap como friend
-template <typename Trait> class Heap;
+template <typename HeapTrait> class Heap;
 
-template <typename T>
+// Vector<Trait> — parametrizado por Trait (no por T crudo).
+// Trait debe exponer al menos: using value_type = ...;
+// VectorTrait<T> en traits.h es el wrapper minimo cuando no necesitas Comp.
+template <typename Trait>
 class Vector{
 public:
-    using  value_type = T;
-    using  forward_iterator   = vector_forward_iterator < Vector<T> > ;
+    using  value_type         = typename Trait::value_type;
+    using  forward_iterator   = vector_forward_iterator < Vector<Trait> > ;
     friend forward_iterator;
-    using  backward_iterator  = vector_backward_iterator< Vector<T> > ;
+    using  backward_iterator  = vector_backward_iterator< Vector<Trait> > ;
     friend backward_iterator;
-    using  Node               = VectorNode<T>;
+    using  Node               = VectorNode<value_type>;
 
     // Heap necesita usar las variantes _unsafe sin retomar el lock interno
     // (su propio mutex ya bloquea durante heapifyUp / heapifyDown).
-    template <typename Trait> friend class Heap;
+    template <typename HeapTrait> friend class Heap;
 
 protected:
     size_t  m_capacity;
@@ -139,15 +143,15 @@ public:
     }
 };
 
-template <typename T>
-Vector<T>::Vector(size_t capacity){
+template <typename Trait>
+Vector<Trait>::Vector(size_t capacity){
     m_capacity = capacity;
     m_size = 0;
     m_data = new Node[capacity];
 }
 
-template <typename T>
-Vector<T>::Vector(const Vector& other) : m_capacity(0), m_size(0), m_data(nullptr) {
+template <typename Trait>
+Vector<Trait>::Vector(const Vector& other) : m_capacity(0), m_size(0), m_data(nullptr) {
     shared_lock<shared_mutex> lock(other.m_mtx);
     m_capacity = other.m_capacity;
     m_size     = other.m_size;
@@ -156,16 +160,16 @@ Vector<T>::Vector(const Vector& other) : m_capacity(0), m_size(0), m_data(nullpt
         m_data[i] = other.m_data[i];
 }
 
-template <typename T>
-Vector<T>::Vector(Vector&& other) noexcept : m_capacity(0), m_size(0), m_data(nullptr) {
+template <typename Trait>
+Vector<Trait>::Vector(Vector&& other) noexcept : m_capacity(0), m_size(0), m_data(nullptr) {
     unique_lock<shared_mutex> lock(other.m_mtx);
     m_capacity = std::exchange(other.m_capacity, 0);
     m_size     = std::exchange(other.m_size, 0);
     m_data     = std::exchange(other.m_data, nullptr);
 }
 
-template <typename T>
-Vector<T>& Vector<T>::operator=(const Vector& other){
+template <typename Trait>
+Vector<Trait>& Vector<Trait>::operator=(const Vector& other){
     if(this == &other) return *this;
     // Adquirir ambos locks. Orden por dirección de memoria para evitar
     // deadlock con asignaciones cruzadas simultáneas.
@@ -189,8 +193,8 @@ Vector<T>& Vector<T>::operator=(const Vector& other){
     return *this;
 }
 
-template <typename T>
-Vector<T>& Vector<T>::operator=(Vector&& other) noexcept {
+template <typename Trait>
+Vector<Trait>& Vector<Trait>::operator=(Vector&& other) noexcept {
     if(this == &other) return *this;
     unique_lock<shared_mutex> lockThis(m_mtx);
     unique_lock<shared_mutex> lockOther(other.m_mtx);
@@ -201,14 +205,14 @@ Vector<T>& Vector<T>::operator=(Vector&& other) noexcept {
     return *this;
 }
 
-template <typename T>
-Vector<T>::~Vector(){
+template <typename Trait>
+Vector<Trait>::~Vector(){
     delete [] m_data;
 }
 
 // resize_unsafe: asume lock externo. NO retomar.
-template <typename T>
-void Vector<T>::resize_unsafe(){
+template <typename Trait>
+void Vector<Trait>::resize_unsafe(){
     m_capacity = (m_capacity < 10) ? m_capacity+10 : m_capacity * 2;
     Node * new_data = new Node[m_capacity];
     for(size_t i = 0; i < m_size; ++i)
@@ -217,69 +221,69 @@ void Vector<T>::resize_unsafe(){
     m_data = new_data;
 }
 
-template <typename T>
-void Vector<T>::push_back_unsafe(value_type value, Ref ref){
+template <typename Trait>
+void Vector<Trait>::push_back_unsafe(value_type value, Ref ref){
     if(m_size == m_capacity)
         resize_unsafe();
     m_data[m_size++] = Node(value, ref);
 }
 
-template <typename T>
-void Vector<T>::push_back(value_type value, Ref ref){
+template <typename Trait>
+void Vector<Trait>::push_back(value_type value, Ref ref){
     unique_lock<shared_mutex> lock(m_mtx);
     push_back_unsafe(value, ref);
 }
 
-template <typename T>
-std::tuple<typename Vector<T>::value_type, Ref> Vector<T>::pop_back_unsafe(){
+template <typename Trait>
+std::tuple<typename Vector<Trait>::value_type, Ref> Vector<Trait>::pop_back_unsafe(){
     if(m_size == 0)
         throw std::out_of_range("Vector::pop_back en Vector vacio");
     --m_size;
     return std::make_tuple(m_data[m_size].getData(), m_data[m_size].getRef());
 }
 
-template <typename T>
-std::tuple<typename Vector<T>::value_type, Ref> Vector<T>::pop_back(){
+template <typename Trait>
+std::tuple<typename Vector<Trait>::value_type, Ref> Vector<Trait>::pop_back(){
     unique_lock<shared_mutex> lock(m_mtx);
     return pop_back_unsafe();
 }
 
-template <typename T>
-void Vector<T>::swap_unsafe(size_t i, size_t j){
+template <typename Trait>
+void Vector<Trait>::swap_unsafe(size_t i, size_t j){
     if(i == j) return;
     std::swap(m_data[i], m_data[j]);
 }
 
-template <typename T>
-typename Vector<T>::value_type& Vector<T>::operator[](size_t i){
+template <typename Trait>
+typename Vector<Trait>::value_type& Vector<Trait>::operator[](size_t i){
     shared_lock<shared_mutex> lock(m_mtx);
     if(i >= m_size)
         throw std::out_of_range("Vector::operator[]: indice fuera de rango");
     return m_data[i].getDataRef();
 }
 
-template <typename T>
-const typename Vector<T>::value_type& Vector<T>::operator[](size_t i) const {
+template <typename Trait>
+const typename Vector<Trait>::value_type& Vector<Trait>::operator[](size_t i) const {
     shared_lock<shared_mutex> lock(m_mtx);
     if(i >= m_size)
         throw std::out_of_range("Vector::operator[] const: indice fuera de rango");
     return m_data[i].getDataRef();
 }
 
-template <typename T>
-size_t Vector<T>::size() const{
+template <typename Trait>
+size_t Vector<Trait>::size() const{
     shared_lock<shared_mutex> lock(m_mtx);
     return m_size;
 }
 
-template <typename T>
-bool Vector<T>::empty() const {
+template <typename Trait>
+bool Vector<Trait>::empty() const {
     shared_lock<shared_mutex> lock(m_mtx);
     return m_size == 0;
 }
 
-template <typename T>
-string Vector<T>::toString() const{
+template <typename Trait>
+string Vector<Trait>::toString() const{
     shared_lock<shared_mutex> lock(m_mtx);
     ostringstream oss;
     oss << "[";
@@ -292,20 +296,20 @@ string Vector<T>::toString() const{
     return oss.str();
 }
 
-template <typename T>
-ostream& operator<<(ostream& os, const Vector<T>& v){
+template <typename Trait>
+ostream& operator<<(ostream& os, const Vector<Trait>& v){
     return os << v.toString();
 }
 
 // TODO: Implementar
-template <typename T>
-istream& operator>>(istream& is, Vector<T>& v){
+template <typename Trait>
+istream& operator>>(istream& is, Vector<Trait>& v){
     return is;
 }
 
-// template <typename T>
+// template <typename Trait>
 // template <typename Func, typename... Args>
-// void Vector<T>::ForEach(Func func, Args &&...  args){
+// void Vector<Trait>::ForEach(Func func, Args &&...  args){
 //     ::ForEach(begin(), end(), func, std::forward<Args>(args)... );
 // }
 
