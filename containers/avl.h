@@ -12,18 +12,21 @@ using namespace std;
 template <typename T>
 class AVLNode : public BinaryTreeNode<T, AVLNode<T>> {
 public:
-    using Base = BinaryTreeNode<T, AVLNode<T>>;
-    using Node = AVLNode<T>;
+    using Base        = BinaryTreeNode<T, AVLNode<T>>;
+    using Node        = AVLNode<T>;
+    // Alias publico: cualquier capa que use heights del AVL toma el tipo
+    // de aca en vez de un nativo. signed permite restas de balance sin wrap.
+    using height_type = int;
 
 private:
-    size_t m_height = 1;   // altura del subarbol enraizado en este nodo
+    height_type m_height = 1;
 
 public:
     AVLNode(T data = T(), Ref ref = Ref(), Node *parent = nullptr)
         : Base(data, ref, parent), m_height(1) {}
 
-    size_t getHeight() const     { return m_height; }
-    void   setHeight(size_t h)   { m_height = h; }
+    height_type getHeight() const          { return m_height; }
+    void        setHeight(height_type h)   { m_height = h; }
 };
 
 // Traits del AVL
@@ -36,32 +39,30 @@ struct DescendingAVLTrait : public BaseTrait<AVLNode<T>, std::greater<T>> {};
 template <typename Trait>
 class AVL : public BinaryTree<Trait> {
 public:
-    using Base       = BinaryTree<Trait>;
-    using value_type = typename Trait::value_type;
-    using Node       = typename Trait::Node;
-    using Comp       = typename Trait::Comp;
-    using MySelf     = AVL<Trait>;
+    using Base        = BinaryTree<Trait>;
+    using value_type  = typename Trait::value_type;
+    using Node        = typename Trait::Node;
+    using Comp        = typename Trait::Comp;
+    using MySelf      = AVL<Trait>;
+    // Reutiliza el alias del Node — el tipo de altura es del dominio del nodo,
+    // no del container. Cambiar la base en AVLNode reverbera aca sin tocar nada.
+    using height_type = typename Node::height_type;
 
 protected:
-    // ---- helpers de altura y balance ----
-    //
-    // CRÍTICO: balance_factor retorna `int` (signed). Con size_t la resta
-    // de alturas cuando right > left wrappea a un numero enorme positivo
-    // y `balance < -1` NUNCA dispara — AVL ciego al desbalance derecho.
-    static size_t height_unsafe(const Node* n) {
+    // height_type es signed, las restas de balance no wrappean.
+    static height_type height_unsafe(const Node* n) {
         return n ? n->getHeight() : 0;
     }
 
-    static int balance_factor_unsafe(const Node* n) {
+    static height_type balance_factor_unsafe(const Node* n) {
         if(!n) return 0;
-        return static_cast<int>(height_unsafe(n->getChild(0)))
-             - static_cast<int>(height_unsafe(n->getChild(1)));
+        return height_unsafe(n->getChild(0)) - height_unsafe(n->getChild(1));
     }
 
     static void update_height_unsafe(Node* n) {
         if(!n) return;
-        size_t hl = height_unsafe(n->getChild(0));
-        size_t hr = height_unsafe(n->getChild(1));
+        height_type hl = height_unsafe(n->getChild(0));
+        height_type hr = height_unsafe(n->getChild(1));
         n->setHeight(1 + std::max(hl, hr));
     }
 
@@ -100,7 +101,7 @@ protected:
 
     void rebalance_unsafe(Node*& pNode) {
         if(!pNode) return;
-        const int bf = balance_factor_unsafe(pNode);
+        const auto bf = balance_factor_unsafe(pNode);
 
         // Pesado a la izquierda
         if(bf > 1) {

@@ -212,6 +212,18 @@ void DemoRangeForNativo() {
     cout << endl;
 }
 
+// toString(Traversal) — el profe pidio que toString aceptara un modo de
+// recorrido con inorder por defecto. Mostramos los 3 sobre un AVL.
+void DemoTraversals() {
+    cout << "\n=== toString parametrizado por traversal (inorder default) ===" << endl;
+    AVL<AscendingAVLTrait<int>> avl;
+    for(int v : {50, 20, 80, 10, 30, 5, 70}) avl.insert(v, v);
+
+    cout << "  Inorder  (default): " << avl.toString() << endl;
+    cout << "  Preorder          : " << avl.toString(Traversal::Preorder)  << endl;
+    cout << "  Postorder         : " << avl.toString(Traversal::Postorder) << endl;
+}
+
 void HashTableDemo() {
     DemoHashTableBasico();
     DemoStructuredBindings();
@@ -220,4 +232,5 @@ void HashTableDemo() {
     DemoHashTableConcurrency();
     DemoRangeForNativo();
     DemoPolimorfico();
+    DemoTraversals();
 }

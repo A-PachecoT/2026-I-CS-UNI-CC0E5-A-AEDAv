@@ -143,6 +143,11 @@ public:
 // =============================================================
 // BinaryTree<Trait>
 // =============================================================
+
+// Modo de recorrido para toString. Default inorder mantiene compat
+// con todo el codigo viejo que llamaba toString() sin argumento.
+enum class Traversal { Inorder, Preorder, Postorder };
+
 template <typename Trait>
 class BinaryTree {
 public:
@@ -260,30 +265,58 @@ public:
         return m_size == 0;
     }
 
-    string toString() const {
+    // toString parametrizado por modo de recorrido. Inorder por default
+    // mantiene el comportamiento original; preorder/postorder son recursivos
+    // bajo el mismo lock.
+    string toString(Traversal mode = Traversal::Inorder) const {
         shared_lock<shared_mutex> lock(m_mtx);
         ostringstream oss;
         oss << "[";
         bool first = true;
-        // recorrido inorder iterativo via leftmost+sucesor
-        Node* cur = leftmost_unsafe(m_pRoot);
-        while(cur){
+
+        auto emit = [&](const Node* n){
             if(!first) oss << ",";
-            oss << "(" << cur->getData() << "," << cur->getRef() << ")";
+            oss << "(" << n->getData() << "," << n->getRef() << ")";
             first = false;
-            // sucesor inorder inline (no podemos usar el iterador con lock ya tomado)
-            if(cur->getChild(1)){
-                cur = cur->getChild(1);
-                while(cur->getChild(0)) cur = cur->getChild(0);
-            } else {
-                Node* p = cur->getParent();
-                while(p && p->getChild(1) == cur){
+        };
+
+        if(mode == Traversal::Inorder){
+            // iterativo: leftmost + sucesor inorder via padres
+            Node* cur = leftmost_unsafe(m_pRoot);
+            while(cur){
+                emit(cur);
+                if(cur->getChild(1)){
+                    cur = cur->getChild(1);
+                    while(cur->getChild(0)) cur = cur->getChild(0);
+                } else {
+                    Node* p = cur->getParent();
+                    while(p && p->getChild(1) == cur){
+                        cur = p;
+                        p = p->getParent();
+                    }
                     cur = p;
-                    p = p->getParent();
                 }
-                cur = p;
             }
+        } else if(mode == Traversal::Preorder){
+            // raiz, izq, der  — DFS recursivo
+            auto walk = [&](auto& self, const Node* n) -> void {
+                if(!n) return;
+                emit(n);
+                self(self, n->getChild(0));
+                self(self, n->getChild(1));
+            };
+            walk(walk, m_pRoot);
+        } else { // Postorder
+            // izq, der, raiz
+            auto walk = [&](auto& self, const Node* n) -> void {
+                if(!n) return;
+                self(self, n->getChild(0));
+                self(self, n->getChild(1));
+                emit(n);
+            };
+            walk(walk, m_pRoot);
         }
+
         oss << "]";
         return oss.str();
     }
