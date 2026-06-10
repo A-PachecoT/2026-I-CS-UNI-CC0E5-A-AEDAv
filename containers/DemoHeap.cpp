@@ -10,10 +10,6 @@
 
 using namespace std;
 
-// Demo parametrizado: la misma logica para MinHeap y MaxHeap. El Trait
-// (MinHeapTrait<T> o MaxHeapTrait<T>) determina el ordenamiento; el resto
-// es identico — antes habia dos funciones casi gemelas (DemoMinHeap y
-// DemoMaxHeap) con un solo diferencial: el Trait + nombre de archivo.
 template <typename Trait>
 static void DemoHipGenerico(const string& titulo,
                             const string& archivo,

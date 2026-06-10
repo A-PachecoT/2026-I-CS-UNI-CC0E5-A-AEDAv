@@ -23,14 +23,15 @@ using namespace std;
 template <typename T, typename NodeType = void>
 class BinaryTreeNode {
 public:
-    using value_type = T;
+    using value_type  = T;
+    using branch_type = size_t;
     using Node = typename std::conditional<std::is_void<NodeType>::value,
                                            BinaryTreeNode<T, void>,
                                            NodeType>::type;
 protected:
     T     m_data;
     Ref   m_ref;
-    Node *m_pChild[2];   // 0 = left, 1 = right
+    Node *m_pChild[2];
     Node *m_pParent;
 
 public:
@@ -46,15 +47,12 @@ public:
     Ref        getRef() const      { return m_ref; }
     void       setRef(Ref ref)     { m_ref = ref; }
 
-    Node*      getChild(int b) const   { return m_pChild[b]; }
-    Node*&     getChildRef(int b)      { return m_pChild[b]; }
-    void       setChild(int b, Node* c){ m_pChild[b] = c; }
+    Node*      getChild(branch_type b) const    { return m_pChild[b]; }
+    Node*&     getChildRef(branch_type b)       { return m_pChild[b]; }
+    void       setChild(branch_type b, Node* c) { m_pChild[b] = c; }
 
     Node*      getParent() const       { return m_pParent; }
     void       setParent(Node* p)      { m_pParent = p; }
-
-    // Para que general_iterator (que llama getNext) pueda usarse — no aplica
-    // a iteradores de árbol, los iteradores propios manejan sucesor/predecesor.
 };
 
 // Traits para BinaryTree. Reciben el TIPO DEL NODO concreto.
@@ -140,21 +138,17 @@ public:
     }
 };
 
-// =============================================================
-// BinaryTree<Trait>
-// =============================================================
-
-// Modo de recorrido para toString. Default inorder mantiene compat
-// con todo el codigo viejo que llamaba toString() sin argumento.
 enum class Traversal { Inorder, Preorder, Postorder };
 
 template <typename Trait>
 class BinaryTree {
 public:
-    using value_type = typename Trait::value_type;
-    using Node       = typename Trait::Node;
-    using Comp       = typename Trait::Comp;
-    using MySelf     = BinaryTree<Trait>;
+    using value_type  = typename Trait::value_type;
+    using Node        = typename Trait::Node;
+    using Comp        = typename Trait::Comp;
+    using MySelf      = BinaryTree<Trait>;
+    using size_type   = std::size_t;
+    using branch_type = typename Node::branch_type;
     using forward_iterator  = bt_inorder_forward_iterator<MySelf>;
     using backward_iterator = bt_inorder_backward_iterator<MySelf>;
     friend forward_iterator;
@@ -162,15 +156,10 @@ public:
 
 protected:
     Node *m_pRoot = nullptr;
-    size_t m_size = 0;
+    size_type m_size = 0;
     Comp   m_comp;
     mutable shared_mutex m_mtx;
 
-    // ---- helpers _unsafe (asumen lock externo) ----
-
-    // Retorna puntero al nodo recien insertado (o existente si duplicado).
-    // Permite a HashTable::operator[] hacer find_or_insert en una sola
-    // pasada en vez de dos busquedas O(log n).
     virtual Node* internal_insert_unsafe(Node* &pNode, const value_type &data, Ref ref, Node* parent);
 
     // copy recursivo manteniendo m_pParent. Si no se propaga el parent,
@@ -255,7 +244,7 @@ public:
         return internal_search_unsafe(m_pRoot, val) != nullptr;
     }
 
-    size_t size() const {
+    size_type size() const {
         shared_lock<shared_mutex> lock(m_mtx);
         return m_size;
     }
@@ -363,7 +352,7 @@ BinaryTree<Trait>::internal_insert_unsafe(Node* &pNode, const value_type &data, 
         ++m_size;
         return pNode;
     }
-    int branch = m_comp(pNode->getData(), data) ? 1 : 0;
+    branch_type branch = m_comp(pNode->getData(), data) ? 1 : 0;
     return internal_insert_unsafe(pNode->getChildRef(branch), data, ref, pNode);
 }
 

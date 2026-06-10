@@ -122,14 +122,6 @@ void DemoHashTableConcurrency() {
     cout << (m.size() == 1000 ? "EXITO" : "FALLO") << endl;
 }
 
-// Funcion generica: recibe cualquier container con .begin() y .end()
-// y escribe sus elementos a un ostream usando un separador. La firma
-// no menciona ningun tipo de container — Vector, LinkedList, BinaryTree,
-// AVL, Heap y HashTable la satisfacen todos.
-//
-// Esto es lo que el profe pide cuando dice "todos tienen la misma
-// cascara". Mismo nombre de metodo (toString, begin, end), misma firma:
-// una sola funcion polimorfica para todos los containers.
 template <typename Container>
 void escribir_polimorfico(const string& etiqueta, Container& c, ostream& os) {
     os << etiqueta << "  toString: " << c.toString();
@@ -138,9 +130,6 @@ void escribir_polimorfico(const string& etiqueta, Container& c, ostream& os) {
     os << "]" << endl;
 }
 
-// Demo polimorfico: misma funcion escribir_polimorfico aplicada a los 6
-// contenedores. Demuestra que la API uniforme (toString + begin/end)
-// permite escribir codigo generico que no le importa el tipo concreto.
 void DemoPolimorfico() {
     cout << "\n=== Polimorfismo via API uniforme (6 contenedores) ===" << endl;
 
@@ -164,9 +153,6 @@ void DemoPolimorfico() {
     h.insert(50, 1); h.insert(20, 2); h.insert(80, 3); h.insert(10, 4);
     escribir_polimorfico("5) Heap       ", h, cout);
 
-    // HashTable usa structured bindings sobre KVPair — no encaja en la
-    // funcion generica simple (operator<< del KVPair lo formatea como
-    // k:v). Lo recorremos con su propia API tambien polimorfica:
     HashTable<int, int> ht;
     ht[5] = 50; ht[2] = 20; ht[8] = 80;
     cout << "6) HashTable   toString: " << ht.toString() << "  range-for: [ ";
@@ -212,8 +198,6 @@ void DemoRangeForNativo() {
     cout << endl;
 }
 
-// toString(Traversal) — el profe pidio que toString aceptara un modo de
-// recorrido con inorder por defecto. Mostramos los 3 sobre un AVL.
 void DemoTraversals() {
     cout << "\n=== toString parametrizado por traversal (inorder default) ===" << endl;
     AVL<AscendingAVLTrait<int>> avl;

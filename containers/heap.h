@@ -15,60 +15,38 @@
 #include "../types.h"
 using namespace std;
 
-// =====================================================================
-// Traits del Heap.
-//
-// NOTA: NO heredan de BaseTrait porque BaseTrait<Node, Comp> requiere
-// un tipo de nodo. El Heap no tiene nodo propio — usa VectorNode<T> via
-// el Vector<T> interno. Simplemente expone value_type y Comp.
-// =====================================================================
 template <typename T>
 struct MinHeapTrait {
     using value_type = T;
-    using Comp       = std::less<T>;   // parent < child -> raiz es minimo
+    using Comp       = std::less<T>;
 };
 
 template <typename T>
 struct MaxHeapTrait {
     using value_type = T;
-    using Comp       = std::greater<T>; // parent > child -> raiz es maximo
+    using Comp       = std::greater<T>;
 };
 
-// =====================================================================
-// Heap<Trait>
-//
-// Composicion sobre Vector<value_type>. NO hereda; el Vector vive como
-// campo. Heap es friend de Vector (declarado en vector.h A3) -> puede
-// usar Vector::_unsafe sin retomar el lock del Vector mientras tiene
-// el suyo propio.
-//
-// Indices del heap clasico (0-indexed):
-//   parent(i) = (i-1)/2     left(i) = 2i+1     right(i) = 2i+2
-// =====================================================================
 template <typename Trait>
 class Heap {
 public:
     using value_type = typename Trait::value_type;
     using Comp       = typename Trait::Comp;
     using MySelf     = Heap<Trait>;
+    using size_type  = std::size_t;
 
 private:
-    // Vector ahora parametrizado por el mismo Trait del Heap.
-    // Vector solo necesita value_type del Trait; ignora Comp.
     Vector<Trait>         m_vec;
     Comp                  m_comp;
     mutable shared_mutex  m_mtx;
 
-    // ---- helpers _unsafe (asumen m_mtx ya tomado) ----
+    static size_type parentIdx(size_type i){ return (i - 1) / 2; }
+    static size_type leftIdx  (size_type i){ return 2*i + 1; }
+    static size_type rightIdx (size_type i){ return 2*i + 2; }
 
-    static size_t parentIdx(size_t i){ return (i - 1) / 2; }
-    static size_t leftIdx  (size_t i){ return 2*i + 1; }
-    static size_t rightIdx (size_t i){ return 2*i + 2; }
-
-    void heapifyUp_unsafe(size_t i) {
+    void heapifyUp_unsafe(size_type i) {
         while(i > 0) {
-            const size_t p = parentIdx(i);
-            // Si el child rompe el orden (debe estar antes que parent), swap.
+            const size_type p = parentIdx(i);
             if(m_comp(m_vec.node_at_unsafe(i).getData(),
                       m_vec.node_at_unsafe(p).getData())) {
                 m_vec.swap_unsafe(i, p);
@@ -77,12 +55,12 @@ private:
         }
     }
 
-    void heapifyDown_unsafe(size_t i) {
-        const size_t n = m_vec.m_size;
+    void heapifyDown_unsafe(size_type i) {
+        const size_type n = m_vec.m_size;
         while(true) {
-            const size_t l = leftIdx(i);
-            const size_t r = rightIdx(i);
-            size_t best = i;
+            const size_type l = leftIdx(i);
+            const size_type r = rightIdx(i);
+            size_type best = i;
             if(l < n && m_comp(m_vec.node_at_unsafe(l).getData(),
                                m_vec.node_at_unsafe(best).getData())) best = l;
             if(r < n && m_comp(m_vec.node_at_unsafe(r).getData(),
@@ -98,7 +76,7 @@ public:
 
     Heap(const Heap& other) {
         shared_lock<shared_mutex> lock(other.m_mtx);
-        m_vec = other.m_vec;  // Vector copy assign (toma su propio lock)
+        m_vec = other.m_vec;
     }
 
     Heap(Heap&& other) noexcept {
@@ -108,7 +86,6 @@ public:
 
     Heap& operator=(const Heap& other) {
         if(this == &other) return *this;
-        // Orden de locks por direccion (mismo truco que vector.h A3 / BinaryTree.h B2)
         if(this < &other) {
             unique_lock<shared_mutex> lockThis(m_mtx);
             shared_lock<shared_mutex> lockOther(other.m_mtx);
@@ -129,9 +106,7 @@ public:
         return *this;
     }
 
-    ~Heap() = default;  // Vector se destruye solo
-
-    // ---- API publica ----
+    ~Heap() = default;
 
     void insert(value_type value, Ref ref) {
         unique_lock<shared_mutex> lock(m_mtx);
@@ -139,7 +114,6 @@ public:
         heapifyUp_unsafe(m_vec.m_size - 1);
     }
 
-    // extract: devuelve el top (data, ref) y lo remueve.
     std::tuple<value_type, Ref> extract() {
         unique_lock<shared_mutex> lock(m_mtx);
         if(m_vec.m_size == 0)
@@ -152,7 +126,6 @@ public:
         return top;
     }
 
-    // peek: top sin remover.
     std::tuple<value_type, Ref> peek() const {
         shared_lock<shared_mutex> lock(m_mtx);
         if(m_vec.m_size == 0)
@@ -161,13 +134,10 @@ public:
                                m_vec.node_at_unsafe(0).getRef());
     }
 
-    size_t size()    const { shared_lock<shared_mutex> lock(m_mtx); return m_vec.m_size; }
+    size_type size()    const { shared_lock<shared_mutex> lock(m_mtx); return m_vec.m_size; }
     bool   empty()   const { shared_lock<shared_mutex> lock(m_mtx); return m_vec.m_size == 0; }
     bool   isEmpty() const { return empty(); }
 
-    // Iteradores del Vector subyacente — habilitan range-for nativo
-    // `for (auto& v : heap)`. Recorrido lineal del array (orden interno
-    // del heap, NO ordenado por prioridad — para eso usar extract).
     using forward_iterator  = typename Vector<Trait>::forward_iterator;
     using backward_iterator = typename Vector<Trait>::backward_iterator;
     forward_iterator  begin()  { return m_vec.begin(); }
@@ -179,7 +149,7 @@ public:
         shared_lock<shared_mutex> lock(m_mtx);
         ostringstream oss;
         oss << "[";
-        for(size_t i = 0; i < m_vec.m_size; ++i) {
+        for(size_type i = 0; i < m_vec.m_size; ++i) {
             if(i > 0) oss << ",";
             const auto& n = m_vec.node_at_unsafe(i);
             oss << "(" << n.getData() << "," << n.getRef() << ")";
@@ -192,7 +162,6 @@ public:
         return os << h.toString();
     }
 
-    // operator>> reconstruye el heap insertando cada (val, ref).
     friend istream& operator>>(istream& is, Heap& h) {
         char ch;
         if(!(is >> ch) || ch != '[') {

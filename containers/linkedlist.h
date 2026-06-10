@@ -79,6 +79,7 @@ public:
     using Node       = typename Trait::Node;
     using Comp       = typename Trait::Comp;
     using MySelf     = LinkedList<Trait>;
+    using size_type  = std::size_t;
 
     using forward_iterator = LinkedListForwardIterator<MySelf>;
     friend forward_iterator;
@@ -86,7 +87,7 @@ public:
 protected:
     Node *m_pRoot = nullptr;
     Node *m_tail = nullptr;
-    size_t m_size = 0;
+    size_type m_size = 0;
     Comp   m_comp;
     mutable shared_mutex m_mtx;
     virtual void internal_insert(Node* &pPrev, const value_type &value, Ref ref);
@@ -155,8 +156,8 @@ public:
     virtual std::tuple<value_type, Ref> pop_back();
     virtual void    insert(const value_type &value, Ref ref);
     
-    virtual value_type& operator[](size_t index);
-    virtual size_t  size() const;
+    virtual value_type& operator[](size_type index);
+    virtual size_type  size() const;
     virtual bool    empty() const;
     virtual string  toString() const;
 
@@ -173,8 +174,6 @@ public:
         }
     }
 
-    // Operadores I/O — delega en toString() para tener un unico lugar
-    // donde se define el formato.
     friend ostream& operator<<(ostream& os, const LinkedList& list) {
         return os << list.toString();
     }
@@ -218,8 +217,6 @@ void LinkedList<Trait>::internal_insert(Node* &pPrev, const value_type &value, R
 template <typename Trait>
 void LinkedList<Trait>::insert(const value_type &value, Ref ref){
     unique_lock<shared_mutex> lock(m_mtx);
-    // internal_insert ya mantiene m_tail correcto (linea 217). Walk lineal
-    // extra eliminado: era duplicacion de trabajo O(n) por insercion.
     internal_insert(m_pRoot, value, ref);
 }
 
@@ -293,18 +290,18 @@ std::tuple<typename LinkedList<Trait>::value_type, Ref> LinkedList<Trait>::pop_b
 }
 
 template <typename Trait>
-typename LinkedList<Trait>::value_type& LinkedList<Trait>::operator[](size_t index) {
+typename LinkedList<Trait>::value_type& LinkedList<Trait>::operator[](size_type index) {
     shared_lock<shared_mutex> lock(m_mtx); 
     if (index >= m_size) throw out_of_range("Indice fuera de rango");
     Node* act = m_pRoot;
-    for (size_t i = 0; i < index; ++i) {
+    for (size_type i = 0; i < index; ++i) {
         act = act->getNext();
     }
     return act->getDataRef();
 }
 
 template <typename Trait>
-size_t LinkedList<Trait>::size() const {
+typename LinkedList<Trait>::size_type LinkedList<Trait>::size() const {
     shared_lock<shared_mutex> lock(m_mtx);
     return m_size;
 }
