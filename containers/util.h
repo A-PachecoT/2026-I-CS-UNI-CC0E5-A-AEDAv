@@ -67,14 +67,14 @@ ostream& container_write(ostream& os, const Container& c){
 
 template <typename Container>
 istream& container_read(istream& is, Container& c){
-    char ch;
+    Token ch;
     if(!(is >> ch) || ch != '['){
         is.clear(ios_base::failbit);
         return is;
     }
     typename Container::value_type val;
     Ref ref;
-    char comma, paren;
+    Token comma, paren;
     while(is >> ch && ch != ']'){
         if(ch == '('){
             if(is >> val >> comma >> ref >> paren){

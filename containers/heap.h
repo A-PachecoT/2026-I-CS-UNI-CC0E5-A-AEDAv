@@ -56,7 +56,7 @@ private:
     }
 
     void heapifyDown_unsafe(size_type i) {
-        const size_type n = m_vec.m_size;
+        const size_type n = m_vec.size_unsafe();
         while(true) {
             const size_type l = leftIdx(i);
             const size_type r = rightIdx(i);
@@ -111,31 +111,31 @@ public:
     void insert(value_type value, Ref ref) {
         unique_lock<shared_mutex> lock(m_mtx);
         m_vec.push_back_unsafe(value, ref);
-        heapifyUp_unsafe(m_vec.m_size - 1);
+        heapifyUp_unsafe(m_vec.size_unsafe() - 1);
     }
 
     std::tuple<value_type, Ref> extract() {
         unique_lock<shared_mutex> lock(m_mtx);
-        if(m_vec.m_size == 0)
+        if(m_vec.size_unsafe() == 0)
             throw std::out_of_range("Heap::extract — heap vacio");
         auto top = std::make_tuple(m_vec.node_at_unsafe(0).getData(),
                                    m_vec.node_at_unsafe(0).getRef());
-        m_vec.swap_unsafe(0, m_vec.m_size - 1);
+        m_vec.swap_unsafe(0, m_vec.size_unsafe() - 1);
         m_vec.pop_back_unsafe();
-        if(m_vec.m_size > 0) heapifyDown_unsafe(0);
+        if(m_vec.size_unsafe() > 0) heapifyDown_unsafe(0);
         return top;
     }
 
     std::tuple<value_type, Ref> peek() const {
         shared_lock<shared_mutex> lock(m_mtx);
-        if(m_vec.m_size == 0)
+        if(m_vec.size_unsafe() == 0)
             throw std::out_of_range("Heap::peek — heap vacio");
         return std::make_tuple(m_vec.node_at_unsafe(0).getData(),
                                m_vec.node_at_unsafe(0).getRef());
     }
 
-    size_type size()    const { shared_lock<shared_mutex> lock(m_mtx); return m_vec.m_size; }
-    bool   empty()   const { shared_lock<shared_mutex> lock(m_mtx); return m_vec.m_size == 0; }
+    size_type size()    const { shared_lock<shared_mutex> lock(m_mtx); return m_vec.size_unsafe(); }
+    bool   empty()   const { shared_lock<shared_mutex> lock(m_mtx); return m_vec.size_unsafe() == 0; }
     bool   isEmpty() const { return empty(); }
 
     using forward_iterator  = typename Vector<Trait>::forward_iterator;
@@ -149,7 +149,7 @@ public:
         shared_lock<shared_mutex> lock(m_mtx);
         ostringstream oss;
         oss << "[";
-        for(size_type i = 0; i < m_vec.m_size; ++i) {
+        for(size_type i = 0; i < m_vec.size_unsafe(); ++i) {
             if(i > 0) oss << ",";
             const auto& n = m_vec.node_at_unsafe(i);
             oss << "(" << n.getData() << "," << n.getRef() << ")";
@@ -163,14 +163,14 @@ public:
     }
 
     friend istream& operator>>(istream& is, Heap& h) {
-        char ch;
+        Token ch;
         if(!(is >> ch) || ch != '[') {
             is.clear(ios_base::failbit);
             return is;
         }
         value_type val;
         Ref ref;
-        char comma, paren;
+        Token comma, paren;
         while(is >> ch && ch != ']') {
             if(ch == '(') {
                 if(is >> val >> comma >> ref >> paren) {

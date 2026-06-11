@@ -43,7 +43,7 @@ ostream& operator<<(ostream& os, const KVPair<K,V>& p) {
 
 template <typename K, typename V>
 istream& operator>>(istream& is, KVPair<K,V>& p) {
-    char colon;
+    Token colon;
     return is >> p.m_key >> colon >> p.m_value;
 }
 

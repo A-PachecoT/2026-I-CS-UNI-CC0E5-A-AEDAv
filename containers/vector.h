@@ -59,12 +59,6 @@ ostream& operator<<(ostream& os, VectorNode<T>& node){
     return os << "(" << node.getData() << ", " << node.getRef() << ")";
 }
 
-// Forward decl para que Vector pueda declarar Heap como friend
-template <typename HeapTrait> class Heap;
-
-// Vector<Trait> — parametrizado por Trait (no por T crudo).
-// Trait debe exponer al menos: using value_type = ...;
-// VectorTrait<T> en traits.h es el wrapper minimo cuando no necesitas Comp.
 template <typename Trait>
 class Vector{
 public:
@@ -76,8 +70,6 @@ public:
     friend backward_iterator;
     using  Node               = VectorNode<value_type>;
 
-    template <typename HeapTrait> friend class Heap;
-
 protected:
     size_type  m_capacity;
     size_type  m_size;
@@ -85,13 +77,14 @@ protected:
     mutable shared_mutex m_mtx;
     void    resize_unsafe();
 
+public:
     void                push_back_unsafe(value_type value, Ref ref);
     std::tuple<value_type, Ref> pop_back_unsafe();
     void                swap_unsafe(size_type i, size_type j);
     Node&               node_at_unsafe(size_type i) { return m_data[i]; }
     const Node&         node_at_unsafe(size_type i) const { return m_data[i]; }
+    size_type           size_unsafe() const { return m_size; }
 
-public:
     Vector(size_type capacity = 10);
     Vector(const Vector& other);
     Vector(Vector&& other) noexcept;
