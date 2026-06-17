@@ -173,7 +173,9 @@ void DemoPolimorfico() {
     h.insert(50, 1); h.insert(20, 2); h.insert(80, 3); h.insert(10, 4);
     escribir_polimorfico("5) Heap       ", h, cout);
 
-    HashTable<HashTableTrait<int, int>> ht;
+    using HtKey   = int;
+    using HtValue = int;
+    HashTable<HashTableTrait<HtKey, HtValue>> ht;
     ht[5] = 50; ht[2] = 20; ht[8] = 80;
     cout << "6) HashTable   toString: " << ht.toString() << "  range-for: [ ";
     for(const auto& [k, val] : ht) cout << k << ":" << val << " ";
@@ -211,7 +213,9 @@ void DemoRangeForNativo() {
     cout << "5) Heap array:  "; for(auto& x : h) cout << x << " "; cout << endl;
 
     // 6. HashTable con structured bindings
-    HashTable<HashTableTrait<int, int>> ht;
+    using HtKey   = int;
+    using HtValue = int;
+    HashTable<HashTableTrait<HtKey, HtValue>> ht;
     ht[5] = 50; ht[2] = 20; ht[8] = 80;
     cout << "6) HashTable:   ";
     for(const auto& [k, val] : ht) cout << k << "->" << val << "  ";
