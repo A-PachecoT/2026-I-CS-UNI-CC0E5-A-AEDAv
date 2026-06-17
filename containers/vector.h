@@ -282,10 +282,9 @@ ostream& operator<<(ostream& os, const Vector<Trait>& v){
     return os << v.toString();
 }
 
-// TODO: Implementar
 template <typename Trait>
 istream& operator>>(istream& is, Vector<Trait>& v){
-    return is;
+    return container_read(is, v);
 }
 
 // template <typename Trait>
