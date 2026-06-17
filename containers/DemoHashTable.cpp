@@ -61,7 +61,7 @@ void DemoStructuredBindings() {
     using Key   = int;
     using Value = int;
     HashTable<HashTableTrait<Key, Value>> m;
-    for(int k : {3, 1, 4, 1, 5, 9, 2, 6, 5, 3}) {
+    for(Key k : {3, 1, 4, 1, 5, 9, 2, 6, 5, 3}) {
         m[k] = k * 10;
     }
 
