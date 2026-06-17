@@ -58,7 +58,7 @@ private:
     }
 
 public:
-    HashTable() = default;
+    using Storage::Storage;
 
     Value& operator[](const Key& key) {
         unique_lock<shared_mutex> lock(this->m_mtx);
