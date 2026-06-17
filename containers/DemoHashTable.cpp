@@ -27,7 +27,9 @@ struct HashTableTrait {
 
 void DemoHashTableBasico() {
     cout << "\n=== HashTable Basico Demo ===" << endl;
-    HashTable<HashTableTrait<int, string>> m;
+    using Key   = int;
+    using Value = string;
+    HashTable<HashTableTrait<Key, Value>> m;
 
     m.insert(5, "cinco");
     m.insert(2, "dos");
@@ -56,7 +58,9 @@ void DemoHashTableBasico() {
 
 void DemoStructuredBindings() {
     cout << "\n=== HashTable Structured Bindings Demo ===" << endl;
-    HashTable<HashTableTrait<int, int>> m;
+    using Key   = int;
+    using Value = int;
+    HashTable<HashTableTrait<Key, Value>> m;
     for(int k : {3, 1, 4, 1, 5, 9, 2, 6, 5, 3}) {
         m[k] = k * 10;
     }
@@ -70,14 +74,16 @@ void DemoStructuredBindings() {
 
 void DemoCopyMove() {
     cout << "\n=== HashTable Copy/Move Demo ===" << endl;
-    HashTable<HashTableTrait<int, int>> original;
+    using Key   = int;
+    using Value = int;
+    HashTable<HashTableTrait<Key, Value>> original;
     original[10] = 100;
     original[20] = 200;
     original[30] = 300;
     cout << "original size = " << original.size() << endl;
 
     // Copy constructor
-    HashTable<HashTableTrait<int, int>> copia = original;
+    HashTable<HashTableTrait<Key, Value>> copia = original;
     cout << "Despues de copia (copy ctor): copia size = " << copia.size()
          << ", copia[20] = " << copia[20] << endl;
 
@@ -86,14 +92,16 @@ void DemoCopyMove() {
     cout << "Modifique copia[20] = 999. original[20] sigue = " << original[20] << endl;
 
     // Move constructor
-    HashTable<HashTableTrait<int, int>> movida = std::move(copia);
+    HashTable<HashTableTrait<Key, Value>> movida = std::move(copia);
     cout << "Despues de move ctor: movida size = " << movida.size()
          << ", movida[10] = " << movida[10] << endl;
 }
 
 void DemoHashTablePersistencia() {
     cout << "\n=== HashTable Persistencia Demo (operator<< y operator>>) ===" << endl;
-    HashTable<HashTableTrait<int, int>> m;
+    using Key   = int;
+    using Value = int;
+    HashTable<HashTableTrait<Key, Value>> m;
     m[10] = 100;
     m[5]  = 50;
     m[20] = 200;
@@ -108,7 +116,7 @@ void DemoHashTablePersistencia() {
     cout << "Escrito a hashtable.txt" << endl;
 
     // operator>> via container_read
-    HashTable<HashTableTrait<int, int>> releida;
+    HashTable<HashTableTrait<Key, Value>> releida;
     ifstream in("hashtable.txt");
     in >> releida;
     cout << "Releida via operator>>: " << releida << endl;
@@ -117,7 +125,9 @@ void DemoHashTablePersistencia() {
 
 void DemoHashTableConcurrency() {
     cout << "\n=== HashTable Concurrency Demo ===" << endl;
-    HashTable<HashTableTrait<int, int>> m;
+    using Key   = int;
+    using Value = int;
+    HashTable<HashTableTrait<Key, Value>> m;
 
     auto worker = [&m](int id) {
         for(int i = 0; i < 200; ++i)
