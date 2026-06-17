@@ -247,22 +247,10 @@ public:
         };
 
         if(mode == Traversal::Inorder){
-            // iterativo: leftmost + sucesor inorder via padres
-            Node* cur = leftmost_unsafe(m_pRoot);
-            while(cur){
-                emit(cur);
-                if(cur->getChild(1)){
-                    cur = cur->getChild(1);
-                    while(cur->getChild(0)) cur = cur->getChild(0);
-                } else {
-                    Node* p = cur->getParent();
-                    while(p && p->getChild(1) == cur){
-                        cur = p;
-                        p = p->getParent();
-                    }
-                    cur = p;
-                }
-            }
+            // reutiliza el iterador forward — mismo recorrido
+            for(forward_iterator it(const_cast<MySelf*>(this), leftmost_unsafe(m_pRoot));
+                it.getNode() != nullptr; ++it)
+                emit(it.getNode());
         } else if(mode == Traversal::Preorder){
             // raiz, izq, der  — DFS recursivo
             auto walk = [&](auto& self, const Node* n) -> void {
