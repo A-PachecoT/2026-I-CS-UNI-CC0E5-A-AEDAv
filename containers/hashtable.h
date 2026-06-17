@@ -1,22 +1,18 @@
 #ifndef __HASHTABLE_H__
 #define __HASHTABLE_H__
 
-#include "avl.h"
+#include <iostream>
 #include <tuple>
 #include <utility>
+#include <mutex>
+#include <shared_mutex>
+#include <stdexcept>
+#include "../types.h"
 
 using namespace std;
 
-// =====================================================================
-// KVPair<Key, Value>
-//
-// Es el value_type que vive dentro del AVL. La comparacion solo mira
-// la Key — el AVL queda ordenado por Key.
-//
-// Para soportar `for (const auto& [k, v] : table)` (structured bindings)
-// se especializan tuple_size, tuple_element y get<I> al final del archivo
-// dentro de `namespace std`.
-// =====================================================================
+// KVPair<Key, Value> — value_type del HashTable.
+// El AVL ordena por key porque operator< mira solo m_key.
 template <typename Key, typename Value>
 class KVPair {
 public:
@@ -26,16 +22,11 @@ public:
     KVPair() : m_key(), m_value() {}
     KVPair(const Key& k, const Value& v) : m_key(k), m_value(v) {}
 
-    // Solo compara por key — esto es lo que hace que el AVL se
-    // ordene por la key.
     bool operator<(const KVPair& other) const { return m_key < other.m_key; }
     bool operator>(const KVPair& other) const { return m_key > other.m_key; }
     bool operator==(const KVPair& other) const { return m_key == other.m_key; }
 };
 
-// Para que operator<< de container_write imprima (k:v) en lugar de
-// solo el key. NO se usa por container_write actual — pero los demos
-// que imprimen KVPair directamente se ven mejor.
 template <typename K, typename V>
 ostream& operator<<(ostream& os, const KVPair<K,V>& p) {
     return os << p.m_key << ":" << p.m_value;
@@ -47,30 +38,25 @@ istream& operator>>(istream& is, KVPair<K,V>& p) {
     return is >> p.m_key >> colon >> p.m_value;
 }
 
-// =====================================================================
-// HashTable<Key, Value>
+// HashTable<Trait>.
+// El Trait debe proveer:
+//   - Trait::Key, Trait::Value
+//   - Trait::value_type  (== KVPair<Key, Value>)
+//   - Trait::Storage     (estructura subyacente — el demo decide cual)
 //
-// Hereda AVL< AscendingAVLTrait< KVPair<Key,Value> > >.
-//
-// La operacion clave es operator[](key) — busca; si existe devuelve
-// ref al value; si no, inserta KVPair(key, Value{}) y devuelve ref.
-//
-// Decisión: "HashTable sobre AVL" se interpreta como — el AVL ES el
-// contenedor; no hay array de buckets ni funcion hash. Trade-off: el
-// nombre "HashTable" es semanticamente un AVLMap. Beneficio: cero
-// duplicacion, hereda balanceo + concurrencia + Big Five de AVL.
-// =====================================================================
-template <typename Key, typename Value>
-class HashTable : public AVL< AscendingAVLTrait< KVPair<Key, Value> > > {
+// El header no menciona AVL, LinkedList, ni ningun tipo concreto. Todo
+// llega via el Trait.
+template <typename Trait>
+class HashTable : public Trait::Storage {
 public:
-    using Pair       = KVPair<Key, Value>;
-    using Trait      = AscendingAVLTrait<Pair>;
-    using Base       = AVL<Trait>;
-    using Node       = typename Base::Node;
-    using value_type = Pair;
+    using Storage    = typename Trait::Storage;
+    using Key        = typename Trait::Key;
+    using Value      = typename Trait::Value;
+    using value_type = typename Trait::value_type;
+    using Pair       = value_type;
+    using Node       = typename Storage::Node;
 
 private:
-    // Busca el nodo con la key dada (asume lock externo).
     Node* find_node_unsafe(const Key& key) const {
         Node* n = this->m_pRoot;
         while(n) {
@@ -83,13 +69,7 @@ private:
 
 public:
     HashTable() = default;
-    // Big Five heredado de Base — funciona porque AVL solo agrega
-    // m_height a los nodos y todo lo demas se copia/mueve via Base.
 
-    // operator[](key) — find-or-insert en una sola pasada.
-    // internal_insert_unsafe ahora retorna el Node* del nodo creado;
-    // las rotaciones del AVL no invalidan el puntero (reordenan
-    // referencias, no objetos).
     Value& operator[](const Key& key) {
         unique_lock<shared_mutex> lock(this->m_mtx);
         if(Node* found = find_node_unsafe(key))
@@ -99,7 +79,6 @@ public:
         return inserted->getDataRef().m_value;
     }
 
-    // get const — tira out_of_range si no esta
     const Value& at(const Key& key) const {
         shared_lock<shared_mutex> lock(this->m_mtx);
         Node* found = find_node_unsafe(key);
@@ -112,11 +91,7 @@ public:
         return find_node_unsafe(key) != nullptr;
     }
 
-    // insert(key, value) — sobrescribe si existe.
-    // Trae el insert(value, Ref) del Base AVL al scope publico — evita el
-    // warning de Woverloaded-virtual al introducir nuestra sobrecarga
-    // insert(Key, Value).
-    using Base::insert;
+    using Storage::insert;
 
     void insert(const Key& key, const Value& value) {
         unique_lock<shared_mutex> lock(this->m_mtx);
@@ -130,13 +105,7 @@ public:
     }
 };
 
-// =====================================================================
-// Especializaciones para structured bindings:
-//   for (const auto& [k, v] : table)
-//
-// Tienen que vivir DENTRO de namespace std. Es la unica forma soportada
-// por C++17+.
-// =====================================================================
+// Especializaciones para structured bindings: for (const auto& [k, v] : m)
 namespace std {
 
 template <typename K, typename V>

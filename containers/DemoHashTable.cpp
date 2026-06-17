@@ -15,9 +15,19 @@
 
 using namespace std;
 
+// El demo decide la estructura subyacente del HashTable.
+// El hashtable.h NO sabe nada de AVL — solo recibe el Trait.
+template <typename _Key, typename _Value>
+struct HashTableTrait {
+    using Key        = _Key;
+    using Value      = _Value;
+    using value_type = KVPair<_Key, _Value>;
+    using Storage    = AVL<AscendingAVLTrait<value_type>>;
+};
+
 void DemoHashTableBasico() {
     cout << "\n=== HashTable Basico Demo ===" << endl;
-    HashTable<int, string> m;
+    HashTable<HashTableTrait<int, string>> m;
 
     m.insert(5, "cinco");
     m.insert(2, "dos");
@@ -46,7 +56,7 @@ void DemoHashTableBasico() {
 
 void DemoStructuredBindings() {
     cout << "\n=== HashTable Structured Bindings Demo ===" << endl;
-    HashTable<int, int> m;
+    HashTable<HashTableTrait<int, int>> m;
     for(int k : {3, 1, 4, 1, 5, 9, 2, 6, 5, 3}) {
         m[k] = k * 10;
     }
@@ -60,14 +70,14 @@ void DemoStructuredBindings() {
 
 void DemoCopyMove() {
     cout << "\n=== HashTable Copy/Move Demo ===" << endl;
-    HashTable<int, int> original;
+    HashTable<HashTableTrait<int, int>> original;
     original[10] = 100;
     original[20] = 200;
     original[30] = 300;
     cout << "original size = " << original.size() << endl;
 
     // Copy constructor
-    HashTable<int, int> copia = original;
+    HashTable<HashTableTrait<int, int>> copia = original;
     cout << "Despues de copia (copy ctor): copia size = " << copia.size()
          << ", copia[20] = " << copia[20] << endl;
 
@@ -76,14 +86,14 @@ void DemoCopyMove() {
     cout << "Modifique copia[20] = 999. original[20] sigue = " << original[20] << endl;
 
     // Move constructor
-    HashTable<int, int> movida = std::move(copia);
+    HashTable<HashTableTrait<int, int>> movida = std::move(copia);
     cout << "Despues de move ctor: movida size = " << movida.size()
          << ", movida[10] = " << movida[10] << endl;
 }
 
 void DemoHashTablePersistencia() {
     cout << "\n=== HashTable Persistencia Demo (operator<< y operator>>) ===" << endl;
-    HashTable<int, int> m;
+    HashTable<HashTableTrait<int, int>> m;
     m[10] = 100;
     m[5]  = 50;
     m[20] = 200;
@@ -98,7 +108,7 @@ void DemoHashTablePersistencia() {
     cout << "Escrito a hashtable.txt" << endl;
 
     // operator>> via container_read
-    HashTable<int, int> releida;
+    HashTable<HashTableTrait<int, int>> releida;
     ifstream in("hashtable.txt");
     in >> releida;
     cout << "Releida via operator>>: " << releida << endl;
@@ -107,7 +117,7 @@ void DemoHashTablePersistencia() {
 
 void DemoHashTableConcurrency() {
     cout << "\n=== HashTable Concurrency Demo ===" << endl;
-    HashTable<int, int> m;
+    HashTable<HashTableTrait<int, int>> m;
 
     auto worker = [&m](int id) {
         for(int i = 0; i < 200; ++i)
@@ -153,7 +163,7 @@ void DemoPolimorfico() {
     h.insert(50, 1); h.insert(20, 2); h.insert(80, 3); h.insert(10, 4);
     escribir_polimorfico("5) Heap       ", h, cout);
 
-    HashTable<int, int> ht;
+    HashTable<HashTableTrait<int, int>> ht;
     ht[5] = 50; ht[2] = 20; ht[8] = 80;
     cout << "6) HashTable   toString: " << ht.toString() << "  range-for: [ ";
     for(const auto& [k, val] : ht) cout << k << ":" << val << " ";
@@ -191,7 +201,7 @@ void DemoRangeForNativo() {
     cout << "5) Heap array:  "; for(auto& x : h) cout << x << " "; cout << endl;
 
     // 6. HashTable con structured bindings
-    HashTable<int, int> ht;
+    HashTable<HashTableTrait<int, int>> ht;
     ht[5] = 50; ht[2] = 20; ht[8] = 80;
     cout << "6) HashTable:   ";
     for(const auto& [k, val] : ht) cout << k << "->" << val << "  ";

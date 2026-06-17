@@ -127,16 +127,16 @@ protected:
 public:
     AVL() = default;
 
-    AVL(const AVL& other) : Base(static_cast<const Base&>(other)) {
+    AVL(const AVL& other) : Base(other) {
         unique_lock<shared_mutex> lock(this->m_mtx);
         recompute_heights_unsafe(this->m_pRoot);
     }
 
-    AVL(AVL&& other) noexcept : Base(static_cast<Base&&>(other)) {}
+    AVL(AVL&& other) noexcept : Base(std::move(other)) {}
 
     AVL& operator=(const AVL& other) {
         if(this == &other) return *this;
-        Base::operator=(static_cast<const Base&>(other));
+        Base::operator=(other);
         unique_lock<shared_mutex> lock(this->m_mtx);
         recompute_heights_unsafe(this->m_pRoot);
         return *this;
@@ -144,7 +144,7 @@ public:
 
     AVL& operator=(AVL&& other) noexcept {
         if(this == &other) return *this;
-        Base::operator=(static_cast<Base&&>(other));
+        Base::operator=(std::move(other));
         return *this;
     }
 

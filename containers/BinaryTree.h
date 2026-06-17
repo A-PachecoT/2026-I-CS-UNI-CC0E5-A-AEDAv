@@ -77,58 +77,29 @@ template <typename Trait> class BinaryTree;
 //   - Si no: subir por padres hasta que veamos un padre desde su
 //     hijo izquierdo. Ese padre es el sucesor. Si no hay -> end().
 
-template <typename Container>
-class bt_inorder_forward_iterator
-    : public general_iterator<Container, bt_inorder_forward_iterator<Container>>
+// Iterador inorder parametrizado por direccion.
+// Dir=1: forward (sucesor inorder). Dir=0: backward (predecesor inorder).
+template <typename Container, std::size_t Dir>
+class bt_inorder_iterator
+    : public general_iterator<Container, bt_inorder_iterator<Container, Dir>>
 {
 public:
-    using Parent = general_iterator<Container, bt_inorder_forward_iterator<Container>>;
+    using Parent = general_iterator<Container, bt_inorder_iterator<Container, Dir>>;
     using Node   = typename Container::Node;
     using Parent::Parent;
     using typename Parent::MySelf;
 
     MySelf operator++() {
+        static constexpr std::size_t Other = 1 - Dir;
         Node* n = this->m_pNode;
         if(!n) return *this;
-        if(n->getChild(1)){
-            // Tiene hijo derecho -> leftmost del subarbol derecho
-            n = n->getChild(1);
-            while(n->getChild(0)) n = n->getChild(0);
-            this->m_pNode = n;
-        } else {
-            // Subir hasta encontrar un padre del cual venimos por izquierda
-            Node* p = n->getParent();
-            while(p && p->getChild(1) == n){
-                n = p;
-                p = p->getParent();
-            }
-            this->m_pNode = p;  // puede ser nullptr = end()
-        }
-        return *this;
-    }
-};
-
-template <typename Container>
-class bt_inorder_backward_iterator
-    : public general_iterator<Container, bt_inorder_backward_iterator<Container>>
-{
-public:
-    using Parent = general_iterator<Container, bt_inorder_backward_iterator<Container>>;
-    using Node   = typename Container::Node;
-    using Parent::Parent;
-    using typename Parent::MySelf;
-
-    // ++ = predecesor inorder (espejado del forward)
-    MySelf operator++() {
-        Node* n = this->m_pNode;
-        if(!n) return *this;
-        if(n->getChild(0)){
-            n = n->getChild(0);
-            while(n->getChild(1)) n = n->getChild(1);
+        if(n->getChild(Dir)){
+            n = n->getChild(Dir);
+            while(n->getChild(Other)) n = n->getChild(Other);
             this->m_pNode = n;
         } else {
             Node* p = n->getParent();
-            while(p && p->getChild(0) == n){
+            while(p && p->getChild(Dir) == n){
                 n = p;
                 p = p->getParent();
             }
@@ -137,6 +108,12 @@ public:
         return *this;
     }
 };
+
+template <typename Container>
+using bt_inorder_forward_iterator  = bt_inorder_iterator<Container, 1>;
+
+template <typename Container>
+using bt_inorder_backward_iterator = bt_inorder_iterator<Container, 0>;
 
 enum class Traversal { Inorder, Preorder, Postorder };
 
