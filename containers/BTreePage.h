@@ -16,6 +16,9 @@
 template <typename Trait>
 class BTree;
 
+template <typename PageType, bool IsForward>
+class btree_iterator;
+
 
 using namespace std;
 enum bt_ErrorCode {bt_ok, bt_overflow, bt_underflow, bt_duplicate, bt_nofound, bt_rootmerged};
@@ -57,6 +60,8 @@ class CBTreePage
 // this is the in-memory version of the CBTreePage
 {
        friend class BTree<Trait>;
+       template <typename PageType, bool IsForward>
+       friend class btree_iterator;
 
 public:
        using value_type = typename Trait::value_type;
@@ -75,44 +80,6 @@ private:
        bt_ErrorCode    Insert (const value_type &key, const ObjIDType ObjID);
        bt_ErrorCode    Remove (const value_type &key, const ObjIDType ObjID);
        bool            Search (const value_type &key, ObjIDType &ObjID);
-       void            Print  (ostream &os);
-
-       template <typename Func, typename... Args>
-       void ForEach(Func func, int level, Args&&... args)
-       {
-               for( int i = 0 ; i < m_KeyCount ; i++)
-               {
-                       if( m_SubPages[i] )
-                               m_SubPages[i]->ForEach(func, level+1, std::forward<Args>(args)...);
-                       func(m_Keys[i], level, std::forward<Args>(args)...);
-               }
-               if( m_SubPages[m_KeyCount] )
-                       m_SubPages[m_KeyCount]->ForEach(func, level+1, std::forward<Args>(args)...);
-       }
-
-       template <typename Func, typename... Args>
-       ObjectInfo* FirstThat(Func func, int level, Args&&... args)
-       {
-               for( int i = 0 ; i < m_KeyCount ; i++)
-               {
-                       if( m_SubPages[i] )
-                       {
-                               ObjectInfo *pTmp = m_SubPages[i]->FirstThat(func, level+1, std::forward<Args>(args)...);
-                               if( pTmp )
-                                       return pTmp;
-                       }
-                       if( func(m_Keys[i], level, std::forward<Args>(args)...) )
-                               return &m_Keys[i];
-               }
-               if( m_SubPages[m_KeyCount] )
-               {
-                       ObjectInfo *pTmp = m_SubPages[m_KeyCount]->FirstThat(func, level+1, std::forward<Args>(args)...);
-                       if( pTmp )
-                               return pTmp;
-               }
-               return nullptr;
-       }
-
 protected:
        int  m_MinKeys; // minimum number of keys in a node
        int  m_MaxKeys, // maximum number of keys in a node
@@ -127,10 +94,6 @@ protected:
        void  Reset ();
        void  Destroy () {   Reset(); delete this;}
        void  clear ();
-
-       bool eq(const value_type &a, const value_type &b) { return !m_comp(a, b) && !m_comp(b, a); }
-       bool lt(const value_type &a, const value_type &b) { return  m_comp(a, b); }
-       bool le(const value_type &a, const value_type &b) { return !m_comp(b, a); }
 
        bool  Redistribute1   (int &pos);
        bool  Redistribute2   (int pos);
@@ -235,7 +198,7 @@ bt_ErrorCode CBTreePage<Trait>::Insert(const value_type& key, const ObjIDType Ob
        int pos = binary_search(m_Keys, 0, m_KeyCount, key, m_comp);
        bt_ErrorCode error = bt_ok;
 
-       if( pos < m_KeyCount && eq((value_type)m_Keys[pos], key) && m_Unique)
+       if( pos < m_KeyCount && !m_comp((value_type)m_Keys[pos], key) && !m_comp(key, (value_type)m_Keys[pos]) && m_Unique)
                return bt_duplicate; // this key is duplicate
 
        if( !m_SubPages[pos] ) // this is a leave
@@ -540,13 +503,13 @@ bool CBTreePage<Trait>::Search(const value_type &key, ObjIDType &ObjID)
                else
                        return false;
        }
-       if( eq(key, m_Keys[pos].key) )
+       if( !m_comp(key, m_Keys[pos].key) && !m_comp(m_Keys[pos].key, key) )
        {
                ObjID = m_Keys[pos].ObjID;
                m_Keys[pos].UseCounter++;
                return true;
        }
-       if( lt(key, m_Keys[pos].key) )
+       if( m_comp(key, m_Keys[pos].key) )
                if( m_SubPages[pos] )
                        return m_SubPages[pos]->Search(key, ObjID);
        return false;
@@ -557,7 +520,7 @@ bt_ErrorCode CBTreePage<Trait>::Remove(const value_type &key, const ObjIDType Ob
 {
        bt_ErrorCode error = bt_ok;
        int pos = binary_search(m_Keys, 0, m_KeyCount, key, m_comp);
-       if( pos < NumberOfKeys() && eq(key, m_Keys[pos].key) /*&& m_Keys[pos].m_ObjID == ObjID*/) // We found it !
+       if( pos < NumberOfKeys() && !m_comp(key, m_Keys[pos].key) && !m_comp(m_Keys[pos].key, key) /*&& m_Keys[pos].m_ObjID == ObjID*/) // We found it !
        {
                // This is a leave: First
                if( !m_SubPages[pos+1] )  // This is a leave ? FIRST CASE !
@@ -583,7 +546,7 @@ bt_ErrorCode CBTreePage<Trait>::Remove(const value_type &key, const ObjIDType Ob
        }
        else if( pos == NumberOfKeys() ) // it is not here, go by the last branch
                error = m_SubPages[pos]->Remove(key, ObjID);
-       else if( le(key, m_Keys[pos].key) ){ // = is because identical keys are inserted on left (see Insert)
+       else if( !m_comp(m_Keys[pos].key, key) ){ // = is because identical keys are inserted on left (see Insert)
                if( m_SubPages[pos] )
                        error = m_SubPages[pos]->Remove(key, ObjID);
                else
@@ -709,21 +672,6 @@ CBTreePage<Trait>::GetFirstObjectInfo()
        if( m_SubPages[0] )
                return m_SubPages[0]->GetFirstObjectInfo();
        return m_Keys[0];
-}
-
-template <typename keyType, typename ObjIDType>
-void Print(tagObjectInfo<keyType, ObjIDType> &info, int level, ostream *pOs)
-{
-        ostream &os = *pOs;
-        for( int i = 0; i < level ; i++)
-                os << "\t";
-        os << info.key << "->" << info.ObjID << "\n";
-}
-
-template <typename Trait>
-void CBTreePage<Trait>::Print(ostream & os)
-{
-       ForEach(&::Print<value_type, ObjIDType>, 0, &os);
 }
 
 template <typename Trait>
