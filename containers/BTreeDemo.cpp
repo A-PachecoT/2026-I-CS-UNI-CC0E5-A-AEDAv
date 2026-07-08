@@ -12,7 +12,7 @@ void DemoBTree(const string &label)
        using value_type = typename Trait::value_type;
        cout << "===== BTree " << label << " =====" << endl;
        BTree<Trait> bt(3);
-       for (int i = 0; keys1[i]; i++)
+       for (size_t i = 0; keys1[i]; i++)
                bt.Insert(keys1[i], i * i);
 
        cout << "size=" << bt.size() << " height=" << bt.height() << endl;
@@ -49,6 +49,12 @@ void DemoBTree(const string &label)
        istringstream iss("(a,1)(b,2)(c,3)");
        iss >> bt2;
        cout << bt2 << endl;
+
+       cout << "--- Remove (una de cada dos) ---" << endl;
+       for (size_t i = 0; keys1[i]; i += 2)
+               bt.Remove(keys1[i], i * i);
+       cout << "size tras remove=" << bt.size() << endl;
+       cout << bt << endl;
        cout << endl;
 }
 

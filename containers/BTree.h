@@ -14,51 +14,50 @@
 
 #define DEFAULT_BTREE_ORDER 3
 
-template <typename PageType, bool IsForward>
+template <typename PageType, Bool IsForward>
 class btree_iterator
 {
        using ObjectInfo = typename PageType::ObjectInfo;
-       vector<pair<PageType *, int>> m_stack;
+       vector<pair<PageType *, size_t>> m_stack;
 
        void Descend(PageType *p)
        {
                while( p && p->m_KeyCount > 0 )
                {
-                       int i = IsForward ? 0 : p->m_KeyCount - 1;
+                       size_t i = IsForward ? 0 : p->m_KeyCount - 1;
                        m_stack.push_back({p, i});
                        p = IsForward ? p->m_SubPages[0] : p->m_SubPages[p->m_KeyCount];
                }
        }
 public:
        btree_iterator() {}
-       btree_iterator(PageType *root, bool atEnd)
+       btree_iterator(PageType *root, Bool atEnd)
        {
                if( !atEnd && root && root->m_KeyCount > 0 )
                        Descend(root);
        }
        ObjectInfo& operator*()  { return m_stack.back().first->m_Keys[m_stack.back().second]; }
        ObjectInfo* operator->() { return &(**this); }
-       bool operator!=(const btree_iterator &o) const
+       Bool operator!=(const btree_iterator &o) const
        {
                if( m_stack.empty() || o.m_stack.empty() )
                        return m_stack.size() != o.m_stack.size();
                return m_stack.back() != o.m_stack.back();
        }
-       bool operator==(const btree_iterator &o) const { return !(*this != o); }
+       Bool operator==(const btree_iterator &o) const { return !(*this != o); }
        btree_iterator& operator++()
        {
                if( m_stack.empty() )
                        return *this;
                PageType *page = m_stack.back().first;
-               int       i    = m_stack.back().second;
+               size_t    i    = m_stack.back().second;
                PageType *child = IsForward ? page->m_SubPages[i+1] : page->m_SubPages[i];
                m_stack.back().second = IsForward ? i+1 : i-1;
                if( child )
                        Descend(child);
                else
                        while( !m_stack.empty() &&
-                              (IsForward ? m_stack.back().second >= m_stack.back().first->m_KeyCount
-                                         : m_stack.back().second < 0) )
+                              m_stack.back().second >= m_stack.back().first->m_KeyCount )
                                m_stack.pop_back();
                return *this;
        }
@@ -76,14 +75,14 @@ public:
        using ObjectInfo = typename BTNode::ObjectInfo;
 
 public:
-       BTree(int order = DEFAULT_BTREE_ORDER, bool unique = true);
+       BTree(size_t order = DEFAULT_BTREE_ORDER, Bool unique = true);
        ~BTree();
-       bool            Insert (const value_type key, const ObjIDType ObjID);
-       bool            Remove (const value_type key, const ObjIDType ObjID);
+       Bool            Insert (const value_type key, const ObjIDType ObjID);
+       Bool            Remove (const value_type key, const ObjIDType ObjID);
        ObjIDType       Search (const value_type key);
-       long            size()  { return m_NumKeys; }
-       long            height() { return m_Height;      }
-       long            GetOrder() { return m_Order;     }
+       size_t          size()  { return m_NumKeys; }
+       size_t          height() { return m_Height;      }
+       size_t          GetOrder() { return m_Order;     }
 
        void            Print (ostream &os);
 
@@ -147,16 +146,16 @@ public:
 
 protected:
        BTNode          m_Root;
-       int             m_Height;  // height of tree
-       int             m_Order;   // order of tree
-       long            m_NumKeys; // number of keys
-       bool            m_Unique;  // Accept the elements only once ?
+       size_t          m_Height;  // height of tree
+       size_t          m_Order;   // order of tree
+       size_t          m_NumKeys; // number of keys
+       Bool            m_Unique;  // Accept the elements only once ?
        mutable shared_mutex m_mtx;
 };
 
-const int MaxHeight = 5;
+const size_t MaxHeight = 5;
 template <typename Trait>
-BTree<Trait>::BTree(int order, bool unique)
+BTree<Trait>::BTree(size_t order, Bool unique)
                                : m_Root(2 * order  + 1, unique),
                                  m_Order(order),
                                  m_NumKeys(0),
@@ -172,7 +171,7 @@ BTree<Trait>::~BTree()
 }
 
 template <typename Trait>
-bool BTree<Trait>::Insert(const value_type key, const ObjIDType ObjID)
+Bool BTree<Trait>::Insert(const value_type key, const ObjIDType ObjID)
 {
        unique_lock<shared_mutex> lock(m_mtx);
        bt_ErrorCode error = m_Root.Insert(key, ObjID);
@@ -188,7 +187,7 @@ bool BTree<Trait>::Insert(const value_type key, const ObjIDType ObjID)
 }
 
 template <typename Trait>
-bool BTree<Trait>::Remove (const value_type key, const ObjIDType ObjID)
+Bool BTree<Trait>::Remove (const value_type key, const ObjIDType ObjID)
 {
        unique_lock<shared_mutex> lock(m_mtx);
        bt_ErrorCode error = m_Root.Remove(key, ObjID);
@@ -205,7 +204,7 @@ template <typename Trait>
 typename BTree<Trait>::ObjIDType BTree<Trait>::Search (const value_type key)
 {
        shared_lock<shared_mutex> lock(m_mtx);
-       ObjIDType ObjID = -1;
+       ObjIDType ObjID = ObjIDType(-1);
        m_Root.Search(key, ObjID);
        return ObjID;
 }
